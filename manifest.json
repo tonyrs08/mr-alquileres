@@ -1,0 +1,14 @@
+{
+  "name": "MR ALQUILERES",
+  "short_name": "MR ALQUILERES",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d1b3d",
+  "theme_color": "#d4af37",
+  "icons": [
+    { "src": "logo.jpg", "sizes": "192x192", "type": "image/jpeg" },
+    { "src": "logo.jpg", "sizes": "512x512", "type": "image/jpeg" }
+  ]
+}

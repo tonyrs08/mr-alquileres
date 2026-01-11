@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>MR ALQUILERES</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<header>
+  <div class="logo-container">
+    <img src="logo.jpg" class="logo" alt="MR ALQUILERES">
+  </div>
+  <h1>MR ALQUILERES</h1>
+</header>
+
+<div class="container">
+  <main id="vista-nueva" class="card vista">
+    <div class="card-header">
+      <h2>✨ Nueva Cotización</h2>
+    </div>
+
+    <div class="input-group">
+      <label>Nombre del Cliente</label>
+      <input type="text" id="cliente" placeholder="Nombre completo" oninput="cotizar()">
+    </div>
+
+    <div class="input-group">
+      <label>Dirección</label>
+      <textarea id="direccion" rows="2" placeholder="Lugar del evento" oninput="cotizar()"></textarea>
+    </div>
+
+    <div class="input-group">
+      <label>Fecha</label>
+      <input type="date" id="fecha" oninput="cotizar()">
+    </div>
+
+    <div class="items-grid">
+      <div class="item-card">
+        <label>Sillas Plásticas</label>
+        <input type="number" id="plasticas" value="0" min="0" oninput="cotizar()">
+        <span class="price-tag">$0.50 c/u | Stock: 70</span>
+      </div>
+      <div class="item-card">
+        <label>Sillas Plegables</label>
+        <input type="number" id="plegables" value="0" min="0" oninput="cotizar()">
+        <span class="price-tag">$1.00 c/u | Stock: 60</span>
+      </div>
+      <div class="item-card">
+        <label>Mesas Cuadradas</label>
+        <input type="number" id="cuadradas" value="0" min="0" oninput="cotizar()">
+        <span class="price-tag">$3.00 c/u | Stock: 15</span>
+      </div>
+      <div class="item-card">
+        <label>Mesa Rectangular</label>
+        <input type="number" id="rectangular" value="0" min="0" oninput="cotizar()">
+        <span class="price-tag">$6.00 c/u | Stock: 1</span>
+      </div>
+    </div>
+
+    <div class="input-group" style="margin-top: 15px;">
+      <label>Transporte ($)</label>
+      <input type="number" id="transporte" value="0" min="0" oninput="cotizar()">
+    </div>
+
+    <div class="total-container">
+      <span class="total-label">TOTAL</span>
+      <div class="total" id="total">$0.00</div>
+    </div>
+
+    <button class="btn-guardar" onclick="guardarCotizacion()">💾 GUARDAR COTIZACIÓN</button>
+  </main>
+
+  <section id="vista-cotizaciones" class="card vista" style="display:none">
+    <div class="card-header"><h2>📝 Presupuestos</h2></div>
+    <div id="lista-cotizaciones"></div>
+  </section>
+
+  <section id="vista-agenda" class="card vista" style="display:none">
+    <div class="card-header"><h2>📅 Agenda</h2></div>
+    <div id="lista-agenda"></div>
+  </section>
+</div>
+
+<nav class="nav-bar">
+  <button onclick="cambiarVista('vista-nueva')" class="nav-item">
+    <span class="nav-icon">➕</span><span class="nav-text">Nueva</span>
+  </button>
+  <button onclick="cambiarVista('vista-cotizaciones')" class="nav-item">
+    <span class="nav-icon">📝</span><span class="nav-text">Lista</span>
+  </button>
+  <button onclick="cambiarVista('vista-agenda')" class="nav-item">
+    <span class="nav-icon">📅</span><span class="nav-text">Agenda</span>
+  </button>
+</nav>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="app.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
