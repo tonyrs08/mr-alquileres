@@ -78,10 +78,11 @@ function cargarAgenda() {
   let a = JSON.parse(localStorage.getItem("agenda")) || [];
   let html = "";
   a.forEach((x, i) => {
+    // CORRECCIÓN: Mostramos x.fecha (fecha del evento) y añadimos la mesa rectangular en el texto
     html += `<div class="item-lista" style="border-left: 5px solid #2ecc71">
       <h3>${x.cliente.toUpperCase()}</h3>
       <div class="info-grid">📅 ${x.fecha} | 📍 ${x.direccion}<br>
-      <small>🪑 ${x.plasticas} P | 🪑 ${x.plegables} Pl | 🔲 ${x.cuadradas} M | 🚚 $${x.transporte}</small><br>
+      <small>🪑 ${x.plasticas} P | 🪑 ${x.plegables} Pl | 🔲 ${x.cuadradas} M | 📏 ${x.rectangular} R | 🚚 $${x.transporte}</small><br>
       <b>Total: $${x.total.toFixed(2)}</b></div>
       <div class="acciones"><button class="btn-pdf" onclick="descargarPDF(${i}, 'agenda')">📄 PDF</button>
       <button class="btn-borrar" onclick="borrar(${i}, 'agenda')">🗑</button></div></div>`;
