@@ -116,7 +116,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc, getDocs, where, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc, getDocs, where, limit, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     // REEMPLAZA ESTOS DATOS CON LOS DE TU CONSOLA FIREBASE
     const firebaseConfig = {
@@ -133,7 +133,7 @@
 
     window.db = db;
     // Maletín de herramientas completo
-    window.firebaseMethods = { addDoc, collection, onSnapshot, query, orderBy, doc, deleteDoc, getDocs, where, limit };
+    window.firebaseMethods = { addDoc, collection, onSnapshot, query, orderBy, doc, deleteDoc, getDocs, where, limit, updateDoc };
 </script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
