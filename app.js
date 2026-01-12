@@ -7,11 +7,9 @@ let actual = { cliente: "", direccion: "", fecha: "", plasticas: 0, plegables: 0
 function cambiarVista(v) {
   document.querySelectorAll(".vista").forEach(e => e.style.display = "none");
   document.getElementById(v).style.display = "block";
-  if (v === "vista-cotizaciones") cargarCotizaciones();
-  if (v === "vista-agenda") cargarAgenda();
 }
 
-function cotizar() {
+async function cotizar() {
   const fechaSel = document.getElementById("fecha").value;
   const cPla = +document.getElementById("plasticas").value || 0;
   const cPle = +document.getElementById("plegables").value || 0;
@@ -21,17 +19,19 @@ function cotizar() {
 
   if (fechaSel) {
     let ocupado = { plasticas: 0, plegables: 0, cuadradas: 0, rectangular: 0 };
-    let todas = [...(JSON.parse(localStorage.getItem("cotizaciones")) || []), 
-                 ...(JSON.parse(localStorage.getItem("agenda")) || [])];
-
-    todas.forEach(reg => {
-      if (reg.fecha === fechaSel) {
-        ocupado.plasticas += (Number(reg.plasticas) || 0);
-        ocupado.plegables += (Number(reg.plegables) || 0);
-        ocupado.cuadradas += (Number(reg.cuadradas) || 0);
-        ocupado.rectangular += (Number(reg.rectangular) || 0);
-      }
-    });
+    const { collection, getDocs, query, where } = window.firebaseMethods;
+    const carpetas = ["cotizaciones", "agenda"];
+    for (const carpeta of carpetas) {
+        const q = query(collection(window.db, carpeta), where("fecha", "==", fechaSel));
+        const snap = await getDocs(q);
+        snap.forEach((doc) => {
+            const reg = doc.data();
+            ocupado.plasticas += Number(reg.plasticas || 0);
+            ocupado.plegables += Number(reg.plegables || 0);
+            ocupado.cuadradas += Number(reg.cuadradas || 0);
+            ocupado.rectangular += Number(reg.rectangular || 0);
+        });
+    }
 
     if (cPla > (STOCK_MR.plasticas - ocupado.plasticas)) { alert(`⚠️ Solo quedan ${STOCK_MR.plasticas - ocupado.plasticas} sillas plásticas.`); return; }
     if (cPle > (STOCK_MR.plegables - ocupado.plegables)) { alert(`⚠️ Solo quedan ${STOCK_MR.plegables - ocupado.plegables} sillas plegables.`); return; }
@@ -44,82 +44,89 @@ function cotizar() {
   document.getElementById("total").innerText = `$${actual.total.toFixed(2)}`;
 }
 
-// CAMBIO AQUÍ: Se añade el folio secuencial permanente
-function guardarCotizacion() {
+async function guardarCotizacion() {
   if (!actual.cliente || actual.total <= 0) return alert("Completa los datos");
-  
-  let ultimoFolio = parseInt(localStorage.getItem("ultimoFolio")) || 0;
-  let nuevoFolio = ultimoFolio + 1;
-  let folioTexto = nuevoFolio.toString().padStart(3, '0');
+  const { addDoc, collection, getDocs, query, orderBy, limit } = window.firebaseMethods;
 
-  let c = JSON.parse(localStorage.getItem("cotizaciones")) || [];
-  c.push({ ...actual, id: Date.now(), folio: folioTexto });
-  
-  localStorage.setItem("ultimoFolio", nuevoFolio);
-  localStorage.setItem("cotizaciones", JSON.stringify(c));
-  
-  alert(`Cotización Guardada ✔ N°: ${folioTexto}`);
-  location.reload(); 
+  try {
+    const q = query(collection(window.db, "cotizaciones"), orderBy("createdAt", "desc"), limit(1));
+    const snap = await getDocs(q);
+    let nuevoFolioNum = 1;
+    if (!snap.empty) {
+        nuevoFolioNum = (parseInt(snap.docs[0].data().folio) || 0) + 1;
+    }
+    let folioTexto = nuevoFolioNum.toString().padStart(3, '0');
+
+    await addDoc(collection(window.db, "cotizaciones"), { 
+        ...actual, 
+        folio: folioTexto,
+        createdAt: new Date().getTime() 
+    });
+
+    alert(`Cotización Guardada ✔ N°: ${folioTexto}`);
+    location.reload(); 
+  } catch (e) { alert("Error al guardar: " + e); }
 }
 
-function cargarCotizaciones() {
-  let c = JSON.parse(localStorage.getItem("cotizaciones")) || [];
-  let html = "";
-  c.forEach((x, i) => {
-    html += `<div class="item-lista"><h3>${x.cliente}</h3><div class="info-grid">📍 ${x.direccion}<br>📅 ${x.fecha}<br><b>Total: $${x.total.toFixed(2)}</b></div>
-      <div class="acciones"><button class="btn-pdf" onclick="descargarPDF(${i}, 'cotizaciones')">📄 PDF</button>
-      <button class="btn-confirmar" onclick="confirmar(${i})">✅ Agendar</button>
-      <button class="btn-borrar" onclick="borrar(${i}, 'cotizaciones')">🗑</button></div></div>`;
-  });
-  document.getElementById("lista-cotizaciones").innerHTML = html || "<p>No hay presupuestos</p>";
+function cargarListasCompartidas() {
+    const { collection, onSnapshot, query, orderBy } = window.firebaseMethods;
+
+    onSnapshot(query(collection(window.db, "cotizaciones"), orderBy("createdAt", "desc")), (snap) => {
+        let html = "";
+        snap.forEach((doc) => {
+            const x = doc.data();
+            const id = doc.id;
+            html += `<div class="item-lista"><h3>${x.cliente}</h3><div class="info-grid">📍 ${x.direccion}<br>📅 ${x.fecha}<br><b>Total: $${Number(x.total).toFixed(2)}</b></div>
+              <div class="acciones"><button class="btn-pdf" onclick='descargarPDF_Firebase(${JSON.stringify(x)})'>📄 PDF</button>
+              <button class="btn-confirmar" onclick='confirmarEnNube("${id}", ${JSON.stringify(x)})'>✅ Agendar</button>
+              <button class="btn-borrar" onclick='borrarDeNube("cotizaciones", "${id}")'>🗑</button></div></div>`;
+        });
+        document.getElementById("lista-cotizaciones").innerHTML = html || "<p>No hay presupuestos</p>";
+    });
+
+    onSnapshot(query(collection(window.db, "agenda"), orderBy("fecha", "asc")), (snap) => {
+        let html = "";
+        snap.forEach((doc) => {
+            const x = doc.data();
+            const id = doc.id;
+            html += `<div class="item-lista" style="border-left: 5px solid #2ecc71">
+              <h3>${x.cliente.toUpperCase()}</h3>
+              <div class="info-grid">📅 ${x.fecha} | 📍 ${x.direccion}<br>
+              <small>🪑 ${x.plasticas} P | 🪑 ${x.plegables} Pl | 🔲 ${x.cuadradas} M | 📏 ${x.rectangular} R | 🚚 $${x.transporte}</small><br>
+              <b>Total: $${Number(x.total).toFixed(2)}</b></div>
+              <div class="acciones"><button class="btn-pdf" onclick='descargarPDF_Firebase(${JSON.stringify(x)})'>📄 PDF</button>
+              <button class="btn-borrar" onclick='borrarDeNube("agenda", "${id}")'>🗑</button></div></div>`;
+        });
+        document.getElementById("lista-agenda").innerHTML = html || "<p>Agenda vacía</p>";
+    });
 }
 
-function cargarAgenda() {
-  let a = JSON.parse(localStorage.getItem("agenda")) || [];
-  let html = "";
-  a.forEach((x, i) => {
-    // CORRECCIÓN: Mostramos x.fecha (fecha del evento) y añadimos la mesa rectangular en el texto
-    html += `<div class="item-lista" style="border-left: 5px solid #2ecc71">
-      <h3>${x.cliente.toUpperCase()}</h3>
-      <div class="info-grid">📅 ${x.fecha} | 📍 ${x.direccion}<br>
-      <small>🪑 ${x.plasticas} P | 🪑 ${x.plegables} Pl | 🔲 ${x.cuadradas} M | 📏 ${x.rectangular} R | 🚚 $${x.transporte}</small><br>
-      <b>Total: $${x.total.toFixed(2)}</b></div>
-      <div class="acciones"><button class="btn-pdf" onclick="descargarPDF(${i}, 'agenda')">📄 PDF</button>
-      <button class="btn-borrar" onclick="borrar(${i}, 'agenda')">🗑</button></div></div>`;
-  });
-  document.getElementById("lista-agenda").innerHTML = html || "<p>Agenda vacía</p>";
+async function confirmarEnNube(id, datos) {
+    if(!confirm("¿Confirmar y agendar?")) return;
+    const { addDoc, collection, deleteDoc, doc } = window.firebaseMethods;
+    try {
+        await addDoc(collection(window.db, "agenda"), datos);
+        await deleteDoc(doc(window.db, "cotizaciones", id));
+    } catch (e) { alert("Error: " + e); }
 }
 
-function confirmar(i) {
-  let c = JSON.parse(localStorage.getItem("cotizaciones")) || [];
-  let a = JSON.parse(localStorage.getItem("agenda")) || [];
-  a.push(c[i]);
-  c.splice(i, 1);
-  localStorage.setItem("cotizaciones", JSON.stringify(c));
-  localStorage.setItem("agenda", JSON.stringify(a));
-  cargarCotizaciones();
+async function borrarDeNube(tipo, id) {
+    if(!confirm("¿Eliminar?")) return;
+    const { deleteDoc, doc } = window.firebaseMethods;
+    await deleteDoc(doc(window.db, tipo, id));
 }
 
-function borrar(i, tipo) {
-  if(!confirm("¿Eliminar?")) return;
-  let d = JSON.parse(localStorage.getItem(tipo));
-  d.splice(i, 1);
-  localStorage.setItem(tipo, JSON.stringify(d));
-  location.reload();
+function descargarPDF_Firebase(data) {
+  localStorage.setItem("temp_pdf", JSON.stringify([data]));
+  descargarPDF(0, "temp_pdf");
 }
 
-// CAMBIO AQUÍ: Se agregaron ambas fechas con el mismo formato
 function descargarPDF(i, tipo) {
   let lista = JSON.parse(localStorage.getItem(tipo)) || [];
   let data = lista[i];
-  
   let nFactura = data.folio ? data.folio : (i + 1).toString().padStart(3, '0');
-  
-  // Formateo de fechas: misma lógica para ambas
   const hoy = new Date();
   const fechaEmision = hoy.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  
-  // Convertimos la fecha del evento (YYYY-MM-DD) al formato DD/MM/YYYY
   const partesFecha = data.fecha.split('-');
   const fechaEventoFormateada = partesFecha.length === 3 ? `${partesFecha[2]}/${partesFecha[1]}/${partesFecha[0]}` : data.fecha;
 
@@ -144,7 +151,7 @@ function descargarPDF(i, tipo) {
     <body>
       <div class="header">
         <div style="display: flex; align-items: center; gap: 15px;">
-          <img src="logo.jpg" class="logo" onload="window.logoLoaded=true">
+          <img src="logo.jpg" class="logo">
           <div>
             <h1 style="margin:0; color:#d4af37; font-size: 28px;">MR ALQUILERES</h1>
             <p style="margin:0; color: #666;">Mobiliario y Mantelería para Eventos</p>
@@ -157,43 +164,30 @@ function descargarPDF(i, tipo) {
           <p style="margin:0; color:#d4af37;"><b>Evento: ${fechaEventoFormateada}</b></p>
         </div>
       </div>
-
       <div class="info-cliente">
         <p style="margin:0;"><b>CLIENTE:</b> ${data.cliente.toUpperCase()}</p>
         <p style="margin:5px 0 0 0;"><b>DIRECCIÓN:</b> ${data.direccion}</p>
       </div>
-
       <table>
         <thead>
-          <tr>
-            <th>Descripción</th>
-            <th style="text-align:center;">Cant.</th>
-            <th style="text-align:right;">Subtotal</th>
-          </tr>
+          <tr><th>Descripción</th><th style="text-align:center;">Cant.</th><th style="text-align:right;">Subtotal</th></tr>
         </thead>
         <tbody>
           ${data.plasticas > 0 ? `<tr><td>Sillas Plásticas</td><td style="text-align:center;">${data.plasticas}</td><td style="text-align:right;">$${(data.plasticas * 0.5).toFixed(2)}</td></tr>` : ''}
           ${data.plegables > 0 ? `<tr><td>Sillas Plegables</td><td style="text-align:center;">${data.plegables}</td><td style="text-align:right;">$${(data.plegables * 1.0).toFixed(2)}</td></tr>` : ''}
           ${data.cuadradas > 0 ? `<tr><td>Mesas Cuadradas</td><td style="text-align:center;">${data.cuadradas}</td><td style="text-align:right;">$${(data.cuadradas * 3.0).toFixed(2)}</td></tr>` : ''}
           ${data.rectangular > 0 ? `<tr><td>Mesa Rectangular</td><td style="text-align:center;">${data.rectangular}</td><td style="text-align:right;">$${(data.rectangular * 6.0).toFixed(2)}</td></tr>` : ''}
-          ${data.transporte > 0 ? `<tr><td>Transporte</td><td style="text-align:center;">1</td><td style="text-align:right;">$${data.transporte.toFixed(2)}</td></tr>` : ''}
+          ${data.transporte > 0 ? `<tr><td>Transporte</td><td style="text-align:center;">1</td><td style="text-align:right;">$${Number(data.transporte).toFixed(2)}</td></tr>` : ''}
         </tbody>
       </table>
-
-      <div class="total">TOTAL A PAGAR: $${data.total.toFixed(2)}</div>
-
+      <div class="total">TOTAL A PAGAR: $${Number(data.total).toFixed(2)}</div>
       <div class="notas">
         <b>TÉRMINOS Y CONDICIONES:</b><br>
         • Se requiere un abono del 50% para separar la fecha del evento.<br>
         • Cualquier daño al mobiliario o mantelería deberá ser cubierto por el cliente en su totalidad.
       </div>
-
       <script>
-        window.onload = function() {
-          setTimeout(() => {
-            window.print();
-          }, 800); 
-        };
+        window.onload = function() { setTimeout(() => { window.print(); }, 800); };
       </script>
     </body>
     </html>
@@ -201,19 +195,18 @@ function descargarPDF(i, tipo) {
   ventana.document.close();
 }
 
-// ================== NOTIFICACIONES AUTOMÁTICAS ==================
 function revisarRecordatorios() {
-  const agenda = JSON.parse(localStorage.getItem("agenda")) || [];
+  const { collection, onSnapshot, query, where } = window.firebaseMethods;
   const hoy = new Date().toISOString().split('T')[0];
-  
-  agenda.forEach(evento => {
-    if (evento.fecha === hoy) {
-      alert(`📢 ¡RECORDATORIO DE EVENTO HOY! \nCliente: ${evento.cliente.toUpperCase()} \nDirección: ${evento.direccion}`);
-    }
+  onSnapshot(query(collection(window.db, "agenda"), where("fecha", "==", hoy)), (snap) => {
+    snap.forEach(doc => {
+        const e = doc.data();
+        alert(`📢 EVENTO HOY: ${e.cliente.toUpperCase()}\n📍 ${e.direccion}`);
+    });
   });
 }
 
-window.onload = function() {
-  revisarRecordatorios();
-  if (typeof cargarCotizaciones === 'function') cargarCotizaciones();
-};
+window.addEventListener('load', () => {
+    revisarRecordatorios();
+    cargarListasCompartidas();
+});
