@@ -45,27 +45,40 @@ async function cotizar() {
 }
 
 async function guardarCotizacion() {
-  if (!actual.cliente || actual.total <= 0) return alert("Completa los datos");
+  if (!actual.cliente || actual.total <= 0) return alert("⚠️ Completa los datos y asegúrate de que el total no sea 0");
+  
   const { addDoc, collection, getDocs, query, orderBy, limit } = window.firebaseMethods;
 
   try {
-    const q = query(collection(window.db, "cotizaciones"), orderBy("createdAt", "desc"), limit(1));
+    // 1. Buscamos en la nube cuál es el folio más alto guardado hasta ahora
+    const q = query(collection(window.db, "cotizaciones"), orderBy("folio", "desc"), limit(1));
     const snap = await getDocs(q);
+    
     let nuevoFolioNum = 1;
+    
+    // 2. Si hay documentos, le sumamos 1 al último que aparezca
     if (!snap.empty) {
-        nuevoFolioNum = (parseInt(snap.docs[0].data().folio) || 0) + 1;
+        const ultimoFolio = snap.docs[0].data().folio;
+        nuevoFolioNum = parseInt(ultimoFolio) + 1;
     }
+    
+    // 3. Lo convertimos a formato 001, 002...
     let folioTexto = nuevoFolioNum.toString().padStart(3, '0');
 
+    // 4. Guardamos la nueva cotización con su número correcto
     await addDoc(collection(window.db, "cotizaciones"), { 
         ...actual, 
         folio: folioTexto,
         createdAt: new Date().getTime() 
     });
 
-    alert(`Cotización Guardada ✔ N°: ${folioTexto}`);
+    alert(`✅ Cotización Guardada con éxito ✔ N°: ${folioTexto}`);
     location.reload(); 
-  } catch (e) { alert("Error al guardar: " + e); }
+    
+  } catch (e) { 
+    console.error(e);
+    alert("❌ Error al generar el número de folio: " + e); 
+  }
 }
 
 function cargarListasCompartidas() {
