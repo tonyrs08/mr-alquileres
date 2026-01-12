@@ -33,10 +33,11 @@
       <textarea id="direccion" rows="2" placeholder="Lugar del evento" oninput="cotizar()"></textarea>
     </div>
 
-    <div class="input-group">
-      <label>Fecha</label>
-      <input type="date" id="fecha" oninput="cotizar()">
-    </div>
+   <label>Fecha del Evento:</label>
+<input type="date" id="fecha" onchange="cotizar()">
+
+<label>Hora de Entrega:</label>
+<input type="time" id="hora_entrega" onchange="cotizar()">
 
     <div class="items-grid">
       <div class="item-card">

@@ -1,15 +1,19 @@
-// ================== CONFIGURACIÓN DE STOCK Y PRECIOS ==================
+// ================== CONFIGURACIÓN INICIAL Y PERMISOS ==================
+if ("Notification" in window) {
+    Notification.requestPermission();
+}
+
 const PRECIOS = { plasticas: 0.5, plegables: 1.0, cuadradas: 3.0, rectangular: 6.0 };
 const STOCK_MR = { plasticas: 70, plegables: 60, cuadradas: 15, rectangular: 1 };
 
-let actual = { cliente: "", direccion: "", fecha: "", plasticas: 0, plegables: 0, cuadradas: 0, rectangular: 0, transporte: 0, total: 0 };
+let actual = { cliente: "", direccion: "", fecha: "", hora: "", plasticas: 0, plegables: 0, cuadradas: 0, rectangular: 0, transporte: 0, total: 0 };
 
+// ================== NAVEGACIÓN ==================
 function cambiarVista(v) {
   document.querySelectorAll(".vista").forEach(e => e.style.display = "none");
   document.getElementById(v).style.display = "block";
 
-  if (v === "vista-cotizaciones") cargarListasCompartidas();
-  if (v === "vista-agenda") cargarListasCompartidas();
+  if (v === "vista-cotizaciones" || v === "vista-agenda") cargarListasCompartidas();
   
   if (v === "vista-historial") {
       const hoy = new Date();
@@ -18,8 +22,10 @@ function cambiarVista(v) {
   }
 }
 
+// ================== LÓGICA DE NEGOCIO (COTIZAR Y GUARDAR) ==================
 async function cotizar() {
   const fechaSel = document.getElementById("fecha").value;
+  const horaSel = document.getElementById("hora_entrega").value; 
   const cPla = +document.getElementById("plasticas").value || 0;
   const cPle = +document.getElementById("plegables").value || 0;
   const cCua = +document.getElementById("cuadradas").value || 0;
@@ -48,7 +54,14 @@ async function cotizar() {
     if (cRec > (STOCK_MR.rectangular - ocupado.rectangular)) { alert(`⚠️ Mesa rectangular ocupada.`); return; }
   }
 
-  actual = { cliente: document.getElementById("cliente").value, direccion: document.getElementById("direccion").value, fecha: fechaSel, plasticas: cPla, plegables: cPle, cuadradas: cCua, rectangular: cRec, transporte: cTra };
+  actual = { 
+    cliente: document.getElementById("cliente").value, 
+    direccion: document.getElementById("direccion").value, 
+    fecha: fechaSel, 
+    hora: horaSel, 
+    plasticas: cPla, plegables: cPle, cuadradas: cCua, rectangular: cRec, transporte: cTra 
+  };
+  
   actual.total = (actual.plasticas * PRECIOS.plasticas) + (actual.plegables * PRECIOS.plegables) + (actual.cuadradas * PRECIOS.cuadradas) + (actual.rectangular * PRECIOS.rectangular) + actual.transporte;
   document.getElementById("total").innerText = `$${actual.total.toFixed(2)}`;
 }
@@ -58,7 +71,6 @@ async function guardarCotizacion() {
   const { addDoc, collection, getDocs, query, orderBy, limit } = window.firebaseMethods;
 
   try {
-    // MODIFICADO: Busca folio más alto en todas las carpetas para que no retroceda el número
     let folioMax = 0;
     const carpetas = ["cotizaciones", "agenda", "historial"];
     for (const col of carpetas) {
@@ -83,10 +95,11 @@ async function guardarCotizacion() {
   } catch (e) { alert("❌ Error: " + e); }
 }
 
+// ================== LISTADOS Y NUBE ==================
 function cargarListasCompartidas() {
     const { collection, onSnapshot, query, orderBy } = window.firebaseMethods;
 
-    // Lista de Cotizaciones
+    // Cotizaciones
     onSnapshot(query(collection(window.db, "cotizaciones"), orderBy("createdAt", "desc")), (snap) => {
         let html = "";
         snap.forEach((doc) => {
@@ -100,15 +113,18 @@ function cargarListasCompartidas() {
         document.getElementById("lista-cotizaciones").innerHTML = html || "<p>No hay presupuestos</p>";
     });
 
-    // Lista de Agenda con botón COMPLETAR
+    // Agenda con Hora
     onSnapshot(query(collection(window.db, "agenda"), orderBy("fecha", "asc")), (snap) => {
         let html = "";
         snap.forEach((doc) => {
             const x = doc.data();
             const id = doc.id;
             html += `<div class="item-lista" style="border-left: 5px solid #2ecc71">
-              <h3>${x.cliente.toUpperCase()}</h3>
-              <div class="info-grid">📅 ${x.fecha} | 📍 ${x.direccion}<br>
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0;">${x.cliente.toUpperCase()}</h3>
+                <span style="background:#2ecc71; color:white; padding:2px 8px; border-radius:4px; font-size:0.8em; font-weight:bold;">🕒 ${x.hora || '--:--'}</span>
+              </div>
+              <div class="info-grid" style="margin-top:5px;">📅 ${x.fecha} | 📍 ${x.direccion}<br>
               <small>🪑 ${x.plasticas}P | ${x.plegables}Pl | 🔲 ${x.cuadradas}M | 📏 ${x.rectangular}R</small><br>
               <b>Total: $${Number(x.total).toFixed(2)}</b></div>
               <div class="acciones">
@@ -170,7 +186,7 @@ function cargarHistorial() {
     });
 }
 
-// PDF MANTENIENDO TU DISEÑO EXACTO
+// ================== PDF Y EXPORTACIÓN ==================
 function descargarPDF_Firebase(data) {
   localStorage.setItem("temp_pdf", JSON.stringify([data]));
   descargarPDF(0, "temp_pdf");
@@ -179,7 +195,7 @@ function descargarPDF_Firebase(data) {
 function descargarPDF(i, tipo) {
   let lista = JSON.parse(localStorage.getItem(tipo)) || [];
   let data = lista[i];
-  let nFactura = data.folio ? data.folio : (i + 1).toString().padStart(3, '0');
+  let nFactura = data.folio || "000";
   const hoy = new Date();
   const fechaEmision = hoy.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const partesFecha = data.fecha.split('-');
@@ -190,18 +206,50 @@ function descargarPDF(i, tipo) {
   ventana.document.close();
 }
 
+// ================== SISTEMA DE ALERTAS Y VIGILANTE ==================
 function revisarRecordatorios() {
   const { collection, onSnapshot, query, where } = window.firebaseMethods;
   const hoy = new Date().toISOString().split('T')[0];
   onSnapshot(query(collection(window.db, "agenda"), where("fecha", "==", hoy)), (snap) => {
     snap.forEach(doc => {
         const e = doc.data();
-        alert(`📢 EVENTO HOY: ${e.cliente.toUpperCase()}\n📍 ${e.direccion}`);
+        alert(`📢 EVENTO HOY A LAS ${e.hora || '---'}:\n👤 ${e.cliente.toUpperCase()}\n📍 ${e.direccion}`);
     });
   });
 }
 
+function iniciarVigilante() {
+    setInterval(async () => {
+        const { collection, getDocs, query, where } = window.firebaseMethods;
+        const ahora = new Date();
+        const fechaHoy = ahora.toISOString().split('T')[0];
+
+        const q = query(collection(window.db, "agenda"), where("fecha", "==", fechaHoy));
+        const snap = await getDocs(q);
+
+        snap.forEach(doc => {
+            const evento = doc.data();
+            if (!evento.hora) return;
+
+            const [h, m] = evento.hora.split(':');
+            const horaEvento = new Date();
+            horaEvento.setHours(h, m, 0);
+
+            const diferenciaMinutos = Math.round((horaEvento - ahora) / 60000);
+
+            if (diferenciaMinutos === 60) {
+                new Notification("🚚 MR ALQUILERES", {
+                    body: `¡Entrega en 1 hora!\nCliente: ${evento.cliente}\n📍 ${evento.direccion}`,
+                    icon: "logo.jpg"
+                });
+            }
+        });
+    }, 60000);
+}
+
+// Carga Inicial
 window.addEventListener('load', () => {
     revisarRecordatorios();
     cargarListasCompartidas();
+    iniciarVigilante();
 });
