@@ -144,7 +144,7 @@ input:focus, textarea:focus {
   margin-top: 5px;
 }
 
-/* Botones */
+/* Botones principales */
 .btn-guardar {
   width: 100%;
   padding: 15px;
@@ -159,15 +159,7 @@ input:focus, textarea:focus {
   text-transform: uppercase;
 }
 
-.btn-guardar:hover {
-  filter: brightness(1.1);
-}
-
-.btn-guardar:active { 
-  transform: scale(0.98); 
-}
-
-/* Listas de Cotizaciones y Agenda */
+/* Listas de Cotizaciones y Agenda - DISEÑO REPARADO */
 .item-lista {
   background: #162641;
   padding: 15px;
@@ -184,37 +176,49 @@ input:focus, textarea:focus {
 }
 
 .info-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 5px;
   font-size: 0.9rem;
   margin: 10px 0;
   color: #ccc;
+  line-height: 1.4;
 }
 
+/* Rejilla de botones: 3 columnas iguales */
 .acciones {
-  display: flex;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); 
+  gap: 8px;
   margin-top: 15px;
 }
 
-.btn-pdf, .btn-confirmar, .btn-borrar {
-  flex: 1;
-  padding: 10px;
+.acciones button {
+  width: 100%;
+  padding: 10px 2px;
   border-radius: 8px;
   border: none;
-  font-size: 0.8rem;
+  font-size: 0.75rem; 
   font-weight: bold;
   cursor: pointer;
+  display: flex;
+  flex-direction: column; /* Icono arriba, texto abajo */
+  align-items: center;
+  justify-content: center;
+  min-height: 55px; 
   transition: opacity 0.2s;
 }
 
 .btn-pdf { background: var(--rojo); color: white; }
 .btn-confirmar { background: var(--verde); color: var(--azul-oscuro); }
-.btn-borrar { background: #555; color: white; }
 
-.btn-pdf:hover, .btn-confirmar:hover, .btn-borrar:hover {
-  opacity: 0.9;
+/* Botón eliminar corregido para ocupar todo el ancho abajo */
+.btn-borrar {
+  grid-column: span 3; 
+  background: rgba(231, 76, 60, 0.1) !important;
+  color: #e74c3c !important;
+  border: 1px solid #e74c3c !important;
+  margin-top: 5px;
+  flex-direction: row !important; /* Horizontal para el de borrar */
+  min-height: 40px !important;
+  gap: 8px;
 }
 
 /* Navegación Inferior */

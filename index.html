@@ -1,142 +1,147 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>MR ALQUILERES</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <link rel="stylesheet" href="style.css">
-  <link rel="manifest" href="manifest.json">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MR ALQUILERES - Gestión</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
-<header>
-  <div class="logo-container">
-    <img src="logo.jpg" class="logo" alt="MR ALQUILERES">
-  </div>
-  <h1>MR ALQUILERES</h1>
-</header>
-
-<div class="container">
-  <main id="vista-nueva" class="card vista">
-    <div class="card-header">
-      <h2>✨ Nueva Cotización</h2>
-    </div>
-
-    <div class="input-group">
-      <label>Nombre del Cliente</label>
-      <input type="text" id="cliente" placeholder="Nombre completo" oninput="cotizar()">
-    </div>
-
-    <div class="input-group">
-      <label>Dirección</label>
-      <textarea id="direccion" rows="2" placeholder="Lugar del evento" oninput="cotizar()"></textarea>
-    </div>
-
-   <label>Fecha del Evento:</label>
-<input type="date" id="fecha" onchange="cotizar()">
-
-<label>Hora de Entrega:</label>
-<input type="time" id="hora_entrega" onchange="cotizar()">
-
-    <div class="items-grid">
-      <div class="item-card">
-        <label>Sillas Plásticas</label>
-        <input type="number" id="plasticas" value="0" min="0" oninput="cotizar()">
-        <span class="price-tag">$0.50 c/u | Stock: 70</span>
-      </div>
-      <div class="item-card">
-        <label>Sillas Plegables</label>
-        <input type="number" id="plegables" value="0" min="0" oninput="cotizar()">
-        <span class="price-tag">$1.00 c/u | Stock: 60</span>
-      </div>
-      <div class="item-card">
-        <label>Mesas Cuadradas</label>
-        <input type="number" id="cuadradas" value="0" min="0" oninput="cotizar()">
-        <span class="price-tag">$3.00 c/u | Stock: 15</span>
-      </div>
-      <div class="item-card">
-        <label>Mesa Rectangular</label>
-        <input type="number" id="rectangular" value="0" min="0" oninput="cotizar()">
-        <span class="price-tag">$6.00 c/u | Stock: 1</span>
-      </div>
-    </div>
-
-    <div class="input-group" style="margin-top: 15px;">
-      <label>Transporte ($)</label>
-      <input type="number" id="transporte" value="0" min="0" oninput="cotizar()">
-    </div>
-
-    <div class="total-container">
-      <span class="total-label">TOTAL</span>
-      <div class="total" id="total">$0.00</div>
-    </div>
-
-    <button class="btn-guardar" onclick="guardarCotizacion()">💾 GUARDAR COTIZACIÓN</button>
-  </main>
-
-  <section id="vista-cotizaciones" class="card vista" style="display:none">
-    <div class="card-header"><h2>📝 Presupuestos</h2></div>
-    <div id="lista-cotizaciones"></div>
-  </section>
-
-  <section id="vista-agenda" class="card vista" style="display:none">
-    <div class="card-header"><h2>📅 Agenda</h2></div>
-    <div id="lista-agenda"></div>
-  </section>
-  <section id="vista-historial" class="card vista" style="display:none">
-    <div class="card-header"><h2>📜 Historial Mensual</h2></div>
-    
-    <div style="background: #fdf6e3; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #d4af37;">
-        <label style="font-weight: bold; display: block; margin-bottom: 5px;">Seleccionar Mes:</label>
-        <input type="month" id="filtro-mes" onchange="cargarHistorial()" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc;">
-        <div id="resumen-mensual" style="margin-top:15px; font-weight:bold; color: #0b1f3a; font-size: 1.2em; text-align: center; border-top: 1px solid #d4af37; padding-top: 10px;">
-            Ganancia del Mes: $0.00
+    <header>
+        <div class="logo-container">
+            <img src="logo.jpg" alt="Logo MR" class="logo">
         </div>
+        <h1>MR ALQUILERES</h1>
+    </header>
+
+    <div class="container">
+        <section id="vista-nueva" class="card vista">
+            <div class="card-header"><h2>📝 Nueva Cotización</h2></div>
+            
+            <div class="input-group">
+                <label>Nombre del Cliente</label>
+                <input type="text" id="cliente" placeholder="Ej: Juan Pérez">
+            </div>
+
+            <div class="input-group">
+                <label>Dirección de Entrega</label>
+                <input type="text" id="direccion" placeholder="Ej: Calle 10, Casa 5">
+            </div>
+
+            <div class="items-grid">
+                <div class="input-group">
+                    <label>Fecha</label>
+                    <input type="date" id="fecha" onchange="cotizar()">
+                </div>
+                <div class="input-group">
+                    <label>Hora Entrega</label>
+                    <input type="time" id="hora_entrega" onchange="cotizar()">
+                </div>
+            </div>
+
+            <div class="items-grid">
+                <div class="item-card">
+                    <label>Plásticas</label>
+                    <input type="number" id="plasticas" value="0" min="0" oninput="cotizar()">
+                    <span class="price-tag">$0.50 c/u</span>
+                </div>
+                <div class="item-card">
+                    <label>Plegables</label>
+                    <input type="number" id="plegables" value="0" min="0" oninput="cotizar()">
+                    <span class="price-tag">$1.00 c/u</span>
+                </div>
+                <div class="item-card">
+                    <label>Cuadradas</label>
+                    <input type="number" id="cuadradas" value="0" min="0" oninput="cotizar()">
+                    <span class="price-tag">$3.00 c/u</span>
+                </div>
+                <div class="item-card">
+                    <label>Rectangular</label>
+                    <input type="number" id="rectangular" value="0" min="0" oninput="cotizar()">
+                    <span class="price-tag">$6.00 c/u</span>
+                </div>
+            </div>
+
+            <div class="input-group" style="margin-top: 15px;">
+                <label>Transporte ($)</label>
+                <input type="number" id="transporte" value="0" min="0" oninput="cotizar()">
+            </div>
+
+            <div class="total-container">
+                <div class="total-label">Presupuesto Estimado</div>
+                <div id="total" class="total">$0.00</div>
+            </div>
+
+            <button class="btn-guardar" onclick="guardarCotizacion()">💾 Guardar Cotización</button>
+        </section>
+
+        <section id="vista-cotizaciones" class="card vista" style="display:none">
+            <div class="card-header"><h2>📋 Presupuestos Pendientes</h2></div>
+            <div id="lista-cotizaciones"></div>
+        </section>
+
+        <section id="vista-agenda" class="card vista" style="display:none">
+            <div class="card-header"><h2>📅 Agenda de Entregas</h2></div>
+            <div id="lista-agenda"></div>
+        </section>
+
+        <section id="vista-historial" class="card vista" style="display:none">
+            <div class="card-header"><h2>📜 Historial y Gastos</h2></div>
+            
+            <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 15px; margin-bottom: 20px; border: 1px solid var(--dorado);">
+                <label>Seleccionar Mes para Reporte:</label>
+                <input type="month" id="filtro-mes" onchange="cargarHistorial()" style="margin-bottom:10px;">
+                
+                <button onclick="registrarGasto()" style="width:100%; padding:12px; background:var(--rojo); color:white; border:none; border-radius:10px; font-weight:bold; cursor:pointer;">💸 REGISTRAR GASTO</button>
+
+                <div id="resumen-mensual" style="margin-top:15px; text-align: center; border-top: 1px solid rgba(212,175,55,0.3); padding-top: 10px;">
+                    </div>
+            </div>
+
+            <div id="lista-historial"></div>
+        </section>
     </div>
 
-    <div id="lista-historial"></div>
-  </section>
-</div>
+    <nav class="nav-bar">
+        <button class="nav-item" onclick="cambiarVista('vista-nueva')">
+            <span class="nav-icon">➕</span>
+            <span class="nav-text">Nueva</span>
+        </button>
+        <button class="nav-item" onclick="cambiarVista('vista-cotizaciones')">
+            <span class="nav-icon">📋</span>
+            <span class="nav-text">Lista</span>
+        </button>
+        <button class="nav-item" onclick="cambiarVista('vista-agenda')">
+            <span class="nav-icon">📅</span>
+            <span class="nav-text">Agenda</span>
+        </button>
+        <button class="nav-item" onclick="cambiarVista('vista-historial')">
+            <span class="nav-icon">📜</span>
+            <span class="nav-text">Historial</span>
+        </button>
+    </nav>
 
-<nav class="nav-bar">
-  <button onclick="cambiarVista('vista-nueva')" class="nav-item">
-    <span class="nav-icon">➕</span><span class="nav-text">Nueva</span>
-  </button>
-  <button onclick="cambiarVista('vista-cotizaciones')" class="nav-item">
-    <span class="nav-icon">📝</span><span class="nav-text">Lista</span>
-  </button>
-  <button onclick="cambiarVista('vista-agenda')" class="nav-item">
-    <span class="nav-icon">📅</span><span class="nav-text">Agenda</span>
-  </button>
-  <button onclick="cambiarVista('vista-historial')" class="nav-item">
-    <span class="nav-icon">📜</span><span class="nav-text">Historial</span>
-  </button>
-</nav>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc, getDocs, where, limit, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc, getDocs, where, limit, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        const firebaseConfig = {
+  apiKey: "AIzaSyATGafzio5ibuVZtc_K8iEkibeg8mT2G4I",
+  authDomain: "mr-alquileres.firebaseapp.com",
+  projectId: "mr-alquileres",
+  storageBucket: "mr-alquileres.firebasestorage.app",
+  messagingSenderId: "506844660682",
+  appId: "1:506844660682:web:58e72a2bbec9d9daf1c533",
+  measurementId: "G-EBR0STW9EH"
+};
 
-    // REEMPLAZA ESTOS DATOS CON LOS DE TU CONSOLA FIREBASE
-    const firebaseConfig = {
-      apiKey: "TU_API_KEY",
-      authDomain: "mr-alquileres.firebaseapp.com",
-      projectId: "mr-alquileres",
-      storageBucket: "mr-alquileres.appspot.com",
-      messagingSenderId: "TU_ID",
-      appId: "TU_APP_ID"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    window.db = db;
-    // Maletín de herramientas completo
-    window.firebaseMethods = { addDoc, collection, onSnapshot, query, orderBy, doc, deleteDoc, getDocs, where, limit, updateDoc };
-</script>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<script src="app.js"></script>
+        const app = initializeApp(firebaseConfig);
+        window.db = getFirestore(app);
+        window.firebaseMethods = { addDoc, collection, onSnapshot, query, orderBy, doc, deleteDoc, getDocs, where, limit, updateDoc };
+    </script>
+    
+    <script src="app.js"></script>
 </body>
 </html>
