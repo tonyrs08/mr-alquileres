@@ -7,6 +7,15 @@ let actual = { cliente: "", direccion: "", fecha: "", plasticas: 0, plegables: 0
 function cambiarVista(v) {
   document.querySelectorAll(".vista").forEach(e => e.style.display = "none");
   document.getElementById(v).style.display = "block";
+
+  if (v === "vista-cotizaciones") cargarListasCompartidas();
+  if (v === "vista-agenda") cargarListasCompartidas();
+  
+  if (v === "vista-historial") {
+      const hoy = new Date();
+      document.getElementById("filtro-mes").value = hoy.toISOString().substring(0, 7);
+      cargarHistorial();
+  }
 }
 
 async function cotizar() {
@@ -45,45 +54,39 @@ async function cotizar() {
 }
 
 async function guardarCotizacion() {
-  if (!actual.cliente || actual.total <= 0) return alert("⚠️ Completa los datos y asegúrate de que el total no sea 0");
-  
+  if (!actual.cliente || actual.total <= 0) return alert("⚠️ Completa los datos");
   const { addDoc, collection, getDocs, query, orderBy, limit } = window.firebaseMethods;
 
   try {
-    // 1. Buscamos en la nube cuál es el folio más alto guardado hasta ahora
-    const q = query(collection(window.db, "cotizaciones"), orderBy("folio", "desc"), limit(1));
-    const snap = await getDocs(q);
-    
-    let nuevoFolioNum = 1;
-    
-    // 2. Si hay documentos, le sumamos 1 al último que aparezca
-    if (!snap.empty) {
-        const ultimoFolio = snap.docs[0].data().folio;
-        nuevoFolioNum = parseInt(ultimoFolio) + 1;
+    // MODIFICADO: Busca folio más alto en todas las carpetas para que no retroceda el número
+    let folioMax = 0;
+    const carpetas = ["cotizaciones", "agenda", "historial"];
+    for (const col of carpetas) {
+        const q = query(collection(window.db, col), orderBy("folio", "desc"), limit(1));
+        const s = await getDocs(q);
+        if(!s.empty) {
+            const f = parseInt(s.docs[0].data().folio) || 0;
+            if(f > folioMax) folioMax = f;
+        }
     }
     
-    // 3. Lo convertimos a formato 001, 002...
-    let folioTexto = nuevoFolioNum.toString().padStart(3, '0');
+    let folioTexto = (folioMax + 1).toString().padStart(3, '0');
 
-    // 4. Guardamos la nueva cotización con su número correcto
     await addDoc(collection(window.db, "cotizaciones"), { 
         ...actual, 
         folio: folioTexto,
         createdAt: new Date().getTime() 
     });
 
-    alert(`✅ Cotización Guardada con éxito ✔ N°: ${folioTexto}`);
+    alert(`✅ Guardada ✔ N°: ${folioTexto}`);
     location.reload(); 
-    
-  } catch (e) { 
-    console.error(e);
-    alert("❌ Error al generar el número de folio: " + e); 
-  }
+  } catch (e) { alert("❌ Error: " + e); }
 }
 
 function cargarListasCompartidas() {
     const { collection, onSnapshot, query, orderBy } = window.firebaseMethods;
 
+    // Lista de Cotizaciones
     onSnapshot(query(collection(window.db, "cotizaciones"), orderBy("createdAt", "desc")), (snap) => {
         let html = "";
         snap.forEach((doc) => {
@@ -97,6 +100,7 @@ function cargarListasCompartidas() {
         document.getElementById("lista-cotizaciones").innerHTML = html || "<p>No hay presupuestos</p>";
     });
 
+    // Lista de Agenda con botón COMPLETAR
     onSnapshot(query(collection(window.db, "agenda"), orderBy("fecha", "asc")), (snap) => {
         let html = "";
         snap.forEach((doc) => {
@@ -105,13 +109,26 @@ function cargarListasCompartidas() {
             html += `<div class="item-lista" style="border-left: 5px solid #2ecc71">
               <h3>${x.cliente.toUpperCase()}</h3>
               <div class="info-grid">📅 ${x.fecha} | 📍 ${x.direccion}<br>
-              <small>🪑 ${x.plasticas} P | 🪑 ${x.plegables} Pl | 🔲 ${x.cuadradas} M | 📏 ${x.rectangular} R | 🚚 $${x.transporte}</small><br>
+              <small>🪑 ${x.plasticas}P | ${x.plegables}Pl | 🔲 ${x.cuadradas}M | 📏 ${x.rectangular}R</small><br>
               <b>Total: $${Number(x.total).toFixed(2)}</b></div>
-              <div class="acciones"><button class="btn-pdf" onclick='descargarPDF_Firebase(${JSON.stringify(x)})'>📄 PDF</button>
-              <button class="btn-borrar" onclick='borrarDeNube("agenda", "${id}")'>🗑</button></div></div>`;
+              <div class="acciones">
+                <button class="btn-pdf" onclick='descargarPDF_Firebase(${JSON.stringify(x)})'>📄 PDF</button>
+                <button class="btn-confirmar" style="background:#2ecc71; color:white;" onclick='completarEvento("${id}", ${JSON.stringify(x)})'>✔ Entregado</button>
+                <button class="btn-borrar" onclick='borrarDeNube("agenda", "${id}")'>🗑</button>
+              </div></div>`;
         });
         document.getElementById("lista-agenda").innerHTML = html || "<p>Agenda vacía</p>";
     });
+}
+
+async function completarEvento(id, datos) {
+    if(!confirm("¿Confirmar entrega y pago para mover a historial?")) return;
+    const { addDoc, collection, deleteDoc, doc } = window.firebaseMethods;
+    try {
+        await addDoc(collection(window.db, "historial"), { ...datos, finalizadoAt: new Date().getTime() });
+        await deleteDoc(doc(window.db, "agenda", id));
+        alert("✅ Movido a Historial");
+    } catch (e) { alert("Error: " + e); }
 }
 
 async function confirmarEnNube(id, datos) {
@@ -129,6 +146,31 @@ async function borrarDeNube(tipo, id) {
     await deleteDoc(doc(window.db, tipo, id));
 }
 
+function cargarHistorial() {
+    const { collection, onSnapshot, query, orderBy } = window.firebaseMethods;
+    const mesSel = document.getElementById("filtro-mes").value;
+    
+    onSnapshot(query(collection(window.db, "historial"), orderBy("fecha", "desc")), (snap) => {
+        const contenedor = document.getElementById('lista-historial');
+        if (!contenedor) return;
+        let html = ""; let suma = 0;
+        snap.forEach((docSnap) => {
+            const x = docSnap.data();
+            if (x.fecha.includes(mesSel)) {
+                suma += Number(x.total);
+                html += `<div class="item-lista" style="border-left: 5px solid #3498db; opacity: 0.85;">
+                    <div style="display:flex; justify-content:space-between;"><h3>${x.cliente.toUpperCase()}</h3><span>#${x.folio}</span></div>
+                    <div class="info-grid">📅 ${x.fecha} | Ganancia: <b>$${Number(x.total).toFixed(2)}</b><br>
+                    <small>Items: ${x.plasticas}P, ${x.plegables}Pl, ${x.cuadradas}M, ${x.rectangular}R</small></div>
+                </div>`;
+            }
+        });
+        contenedor.innerHTML = html || "<p style='text-align:center;'>Sin entregas este mes.</p>";
+        document.getElementById("resumen-mensual").innerHTML = `Ganancia Total ${mesSel}:<br><span style="font-size:1.4em; color:#27ae60;">$${suma.toFixed(2)}</span>`;
+    });
+}
+
+// PDF MANTENIENDO TU DISEÑO EXACTO
 function descargarPDF_Firebase(data) {
   localStorage.setItem("temp_pdf", JSON.stringify([data]));
   descargarPDF(0, "temp_pdf");
@@ -144,67 +186,7 @@ function descargarPDF(i, tipo) {
   const fechaEventoFormateada = partesFecha.length === 3 ? `${partesFecha[2]}/${partesFecha[1]}/${partesFecha[0]}` : data.fecha;
 
   let ventana = window.open("", "_blank");
-  ventana.document.write(`
-    <html>
-    <head>
-      <title>Cotización MR - ${data.cliente}</title>
-      <style>
-        @media print { body { -webkit-print-color-adjust: exact; } }
-        body { font-family: Arial, sans-serif; padding: 40px; color: #333; background: #fff; }
-        .header { border-bottom: 4px solid #d4af37; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-        .logo { width: 80px; height: 80px; object-fit: contain; }
-        .info-cliente { background: #f2f2f2 !important; padding: 15px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #ddd; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { background: #0b1f3a !important; color: white !important; padding: 12px; text-align: left; border: 1px solid #ddd; }
-        td { padding: 10px; border: 1px solid #ddd; }
-        .total { text-align: right; font-size: 22px; font-weight: bold; color: #0b1f3a; margin-top: 20px; }
-        .notas { margin-top: 40px; padding: 15px; border: 1px dashed #d4af37; background: #fffcf5 !important; font-size: 12px; border-radius: 5px; }
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        <div style="display: flex; align-items: center; gap: 15px;">
-          <img src="logo.jpg" class="logo">
-          <div>
-            <h1 style="margin:0; color:#d4af37; font-size: 28px;">MR ALQUILERES</h1>
-            <p style="margin:0; color: #666;">Mobiliario y Mantelería para Eventos</p>
-          </div>
-        </div>
-        <div style="text-align: right;">
-          <h2 style="margin:0; color: #0b1f3a;">COTIZACIÓN</h2>
-          <p style="margin:5px 0 0 0;"><b>N°: ${nFactura}</b></p>
-          <p style="margin:2px 0; font-size: 14px;">Emisión: ${fechaEmision}</p>
-          <p style="margin:0; color:#d4af37;"><b>Evento: ${fechaEventoFormateada}</b></p>
-        </div>
-      </div>
-      <div class="info-cliente">
-        <p style="margin:0;"><b>CLIENTE:</b> ${data.cliente.toUpperCase()}</p>
-        <p style="margin:5px 0 0 0;"><b>DIRECCIÓN:</b> ${data.direccion}</p>
-      </div>
-      <table>
-        <thead>
-          <tr><th>Descripción</th><th style="text-align:center;">Cant.</th><th style="text-align:right;">Subtotal</th></tr>
-        </thead>
-        <tbody>
-          ${data.plasticas > 0 ? `<tr><td>Sillas Plásticas</td><td style="text-align:center;">${data.plasticas}</td><td style="text-align:right;">$${(data.plasticas * 0.5).toFixed(2)}</td></tr>` : ''}
-          ${data.plegables > 0 ? `<tr><td>Sillas Plegables</td><td style="text-align:center;">${data.plegables}</td><td style="text-align:right;">$${(data.plegables * 1.0).toFixed(2)}</td></tr>` : ''}
-          ${data.cuadradas > 0 ? `<tr><td>Mesas Cuadradas</td><td style="text-align:center;">${data.cuadradas}</td><td style="text-align:right;">$${(data.cuadradas * 3.0).toFixed(2)}</td></tr>` : ''}
-          ${data.rectangular > 0 ? `<tr><td>Mesa Rectangular</td><td style="text-align:center;">${data.rectangular}</td><td style="text-align:right;">$${(data.rectangular * 6.0).toFixed(2)}</td></tr>` : ''}
-          ${data.transporte > 0 ? `<tr><td>Transporte</td><td style="text-align:center;">1</td><td style="text-align:right;">$${Number(data.transporte).toFixed(2)}</td></tr>` : ''}
-        </tbody>
-      </table>
-      <div class="total">TOTAL A PAGAR: $${Number(data.total).toFixed(2)}</div>
-      <div class="notas">
-        <b>TÉRMINOS Y CONDICIONES:</b><br>
-        • Se requiere un abono del 50% para separar la fecha del evento.<br>
-        • Cualquier daño al mobiliario o mantelería deberá ser cubierto por el cliente en su totalidad.
-      </div>
-      <script>
-        window.onload = function() { setTimeout(() => { window.print(); }, 800); };
-      </script>
-    </body>
-    </html>
-  `);
+  ventana.document.write(`<html><head><title>Cotización MR - ${data.cliente}</title><style>@media print { body { -webkit-print-color-adjust: exact; } } body { font-family: Arial, sans-serif; padding: 40px; color: #333; background: #fff; } .header { border-bottom: 4px solid #d4af37; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; } .logo { width: 80px; height: 80px; object-fit: contain; } .info-cliente { background: #f2f2f2 !important; padding: 15px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #ddd; } table { width: 100%; border-collapse: collapse; margin-top: 10px; } th { background: #0b1f3a !important; color: white !important; padding: 12px; text-align: left; border: 1px solid #ddd; } td { padding: 10px; border: 1px solid #ddd; } .total { text-align: right; font-size: 22px; font-weight: bold; color: #0b1f3a; margin-top: 20px; } .notas { margin-top: 40px; padding: 15px; border: 1px dashed #d4af37; background: #fffcf5 !important; font-size: 12px; border-radius: 5px; }</style></head><body><div class="header"><div style="display: flex; align-items: center; gap: 15px;"><img src="logo.jpg" class="logo"><div><h1 style="margin:0; color:#d4af37; font-size: 28px;">MR ALQUILERES</h1><p style="margin:0; color: #666;">Mobiliario y Mantelería para Eventos</p></div></div><div style="text-align: right;"><h2 style="margin:0; color: #0b1f3a;">COTIZACIÓN</h2><p style="margin:5px 0 0 0;"><b>N°: ${nFactura}</b></p><p style="margin:2px 0; font-size: 14px;">Emisión: ${fechaEmision}</p><p style="margin:0; color:#d4af37;"><b>Evento: ${fechaEventoFormateada}</b></p></div></div><div class="info-cliente"><p style="margin:0;"><b>CLIENTE:</b> ${data.cliente.toUpperCase()}</p><p style="margin:5px 0 0 0;"><b>DIRECCIÓN:</b> ${data.direccion}</p></div><table><thead><tr><th>Descripción</th><th style="text-align:center;">Cant.</th><th style="text-align:right;">Subtotal</th></tr></thead><tbody>${data.plasticas > 0 ? `<tr><td>Sillas Plásticas</td><td style="text-align:center;">${data.plasticas}</td><td style="text-align:right;">$${(data.plasticas * 0.5).toFixed(2)}</td></tr>` : ''}${data.plegables > 0 ? `<tr><td>Sillas Plegables</td><td style="text-align:center;">${data.plegables}</td><td style="text-align:right;">$${(data.plegables * 1.0).toFixed(2)}</td></tr>` : ''}${data.cuadradas > 0 ? `<tr><td>Mesas Cuadradas</td><td style="text-align:center;">${data.cuadradas}</td><td style="text-align:right;">$${(data.cuadradas * 3.0).toFixed(2)}</td></tr>` : ''}${data.rectangular > 0 ? `<tr><td>Mesa Rectangular</td><td style="text-align:center;">${data.rectangular}</td><td style="text-align:right;">$${(data.rectangular * 6.0).toFixed(2)}</td></tr>` : ''}${data.transporte > 0 ? `<tr><td>Transporte</td><td style="text-align:center;">1</td><td style="text-align:right;">$${Number(data.transporte).toFixed(2)}</td></tr>` : ''}</tbody></table><div class="total">TOTAL A PAGAR: $${Number(data.total).toFixed(2)}</div><div class="notas"><b>TÉRMINOS Y CONDICIONES:</b><br>• Se requiere un abono del 50% para separar la fecha del evento.<br>• Cualquier daño al mobiliario o mantelería deberá ser cubierto por el cliente en su totalidad.</div><script>window.onload = function() { setTimeout(() => { window.print(); }, 800); };</script></body></html>`);
   ventana.document.close();
 }
 

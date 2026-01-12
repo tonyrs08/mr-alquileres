@@ -83,6 +83,19 @@
     <div class="card-header"><h2>📅 Agenda</h2></div>
     <div id="lista-agenda"></div>
   </section>
+  <section id="vista-historial" class="card vista" style="display:none">
+    <div class="card-header"><h2>📜 Historial Mensual</h2></div>
+    
+    <div style="background: #fdf6e3; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #d4af37;">
+        <label style="font-weight: bold; display: block; margin-bottom: 5px;">Seleccionar Mes:</label>
+        <input type="month" id="filtro-mes" onchange="cargarHistorial()" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc;">
+        <div id="resumen-mensual" style="margin-top:15px; font-weight:bold; color: #0b1f3a; font-size: 1.2em; text-align: center; border-top: 1px solid #d4af37; padding-top: 10px;">
+            Ganancia del Mes: $0.00
+        </div>
+    </div>
+
+    <div id="lista-historial"></div>
+  </section>
 </div>
 
 <nav class="nav-bar">
@@ -94,6 +107,9 @@
   </button>
   <button onclick="cambiarVista('vista-agenda')" class="nav-item">
     <span class="nav-icon">📅</span><span class="nav-text">Agenda</span>
+  </button>
+  <button onclick="cambiarVista('vista-historial')" class="nav-item">
+    <span class="nav-icon">📜</span><span class="nav-text">Historial</span>
   </button>
 </nav>
 
