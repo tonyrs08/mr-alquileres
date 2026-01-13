@@ -288,17 +288,24 @@ async function borrarDeNube(tipo, id) {
     if (tipo === "historial" || tipo === "gastos") cargarHistorial();
 }
 
+// ================== PDF Y EXPORTACIÓN ==================
 function descargarPDF_Firebase(data) {
     localStorage.setItem("temp_pdf", JSON.stringify([data]));
     descargarPDF(0, "temp_pdf");
 }
 
 function descargarPDF(i, tipo) {
-    let data = JSON.parse(localStorage.getItem(tipo))[i];
+    let lista = JSON.parse(localStorage.getItem(tipo)) || [];
+    let data = lista[i];
+    let nFactura = data.folio || "000";
+    const hoy = new Date();
+    const fechaEmision = hoy.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const partesFecha = data.fecha.split('-');
+    const fechaEventoFormateada = partesFecha.length === 3 ? `${partesFecha[2]}/${partesFecha[1]}/${partesFecha[0]}` : data.fecha;
+
     let ventana = window.open("", "_blank");
-    ventana.document.write(`<html><head><title>Cotización MR</title><style>body{font-family:sans-serif;padding:30px} table{width:100%;border-collapse:collapse} th,td{padding:8px;border:1px solid #ddd} th{background:#0b1f3a;color:white}</style></head><body><h1>MR ALQUILERES</h1><p>Cliente: ${data.cliente}</p><p>Dirección: ${data.direccion}</p><table><tr><th>Producto</th><th>Cant.</th></tr><tr><td>Sillas Plásticas</td><td>${data.plasticas}</td></tr><tr><td>Sillas Plegables</td><td>${data.plegables}</td></tr><tr><td>Mesas Cuadradas</td><td>${data.cuadradas}</td></tr><tr><td>Mesa Rectangular</td><td>${data.rectangular}</td></tr></table><h3>TOTAL: $${data.total}</h3></body></html>`);
+    ventana.document.write(`<html><head><title>Cotización MR - ${data.cliente}</title><style>@media print { body { -webkit-print-color-adjust: exact; } } body { font-family: Arial, sans-serif; padding: 40px; color: #333; background: #fff; } .header { border-bottom: 4px solid #d4af37; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; } .logo { width: 80px; height: 80px; object-fit: contain; } .info-cliente { background: #f2f2f2 !important; padding: 15px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #ddd; } table { width: 100%; border-collapse: collapse; margin-top: 10px; } th { background: #0b1f3a !important; color: white !important; padding: 12px; text-align: left; border: 1px solid #ddd; } td { padding: 10px; border: 1px solid #ddd; } .total { text-align: right; font-size: 22px; font-weight: bold; color: #0b1f3a; margin-top: 20px; } .notas { margin-top: 40px; padding: 15px; border: 1px dashed #d4af37; background: #fffcf5 !important; font-size: 12px; border-radius: 5px; }</style></head><body><div class="header"><div style="display: flex; align-items: center; gap: 15px;"><img src="logo.jpg" class="logo"><div><h1 style="margin:0; color:#d4af37; font-size: 28px;">MR ALQUILERES</h1><p style="margin:0; color: #666;">Mobiliario y Mantelería para Eventos</p></div></div><div style="text-align: right;"><h2 style="margin:0; color: #0b1f3a;">COTIZACIÓN</h2><p style="margin:5px 0 0 0;"><b>N°: ${nFactura}</b></p><p style="margin:2px 0; font-size: 14px;">Emisión: ${fechaEmision}</p><p style="margin:0; color:#d4af37;"><b>Evento: ${fechaEventoFormateada}</b></p></div></div><div class="info-cliente"><p style="margin:0;"><b>CLIENTE:</b> ${data.cliente.toUpperCase()}</p><p style="margin:5px 0 0 0;"><b>DIRECCIÓN:</b> ${data.direccion}</p></div><table><thead><tr><th>Descripción</th><th style="text-align:center;">Cant.</th><th style="text-align:right;">Subtotal</th></tr></thead><tbody>${data.plasticas > 0 ? `<tr><td>Sillas Plásticas</td><td style="text-align:center;">${data.plasticas}</td><td style="text-align:right;">$${(data.plasticas * 0.5).toFixed(2)}</td></tr>` : ''}${data.plegables > 0 ? `<tr><td>Sillas Plegables</td><td style="text-align:center;">${data.plegables}</td><td style="text-align:right;">$${(data.plegables * 1.0).toFixed(2)}</td></tr>` : ''}${data.cuadradas > 0 ? `<tr><td>Mesas Cuadradas</td><td style="text-align:center;">${data.cuadradas}</td><td style="text-align:right;">$${(data.cuadradas * 3.0).toFixed(2)}</td></tr>` : ''}${data.rectangular > 0 ? `<tr><td>Mesa Rectangular</td><td style="text-align:center;">${data.rectangular}</td><td style="text-align:right;">$${(data.rectangular * 6.0).toFixed(2)}</td></tr>` : ''}${data.transporte > 0 ? `<tr><td>Transporte</td><td style="text-align:center;">1</td><td style="text-align:right;">$${Number(data.transporte).toFixed(2)}</td></tr>` : ''}</tbody></table><div class="total">TOTAL A PAGAR: $${Number(data.total).toFixed(2)}</div><div class="notas"><b>TÉRMINOS Y CONDICIONES:</b><br>• Se requiere un abono del 50% para separar la fecha del evento.<br>• Cualquier daño al mobiliario o mantelería deberá ser cubierto por el cliente en su totalidad.</div><script>window.onload = function() { setTimeout(() => { window.print(); }, 800); };</script></body></html>`);
     ventana.document.close();
-    setTimeout(()=>ventana.print(), 800);
 }
 
 function iniciarVigilante() {
@@ -313,16 +320,49 @@ function iniciarVigilante() {
                 const [h, m] = ev.hora.split(':');
                 const horaEv = new Date(); horaEv.setHours(h, m, 0);
                 const diff = Math.round((horaEv - ahora) / 60000);
-                if (diff === 60) new Notification("🚚 MR ALQUILERES", { body: `Entrega en 1 hora: ${ev.cliente}` });
+                if (diff === 60) new Notification("🚚 MR ALQUILERES", { body: `Entrega en 1 hora: ${ev.cliente}`, icon: "logo.jpg" });
             }
         });
     }, 60000);
 }
 
+// ================== CARGA INICIAL Y STOCK VISIBLE ==================
+// ================== CARGA INICIAL ==================
 window.addEventListener('load', () => { 
     cargarListasCompartidas(); 
     iniciarVigilante();
+
+    // Configurar fecha actual en el filtro
     const hoy = new Date();
     const fMes = document.getElementById("filtro-mes");
     if(fMes) fMes.value = hoy.toISOString().substring(0, 7);
+
+    // --- NUEVO: INSERTAR ETIQUETAS AMARILLAS DEBAJO DE LOS INPUTS ---
+    const items = ["plasticas", "plegables", "cuadradas", "rectangular"];
+    
+    items.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+            // Buscamos si ya existe el letrero para no duplicarlo
+            let etiqueta = document.getElementById(`info-${id}`);
+            
+            if (!etiqueta) {
+                // Si no existe, lo creamos
+                etiqueta = document.createElement("div");
+                etiqueta.id = `info-${id}`;
+                // Estilos para que se vea igual a la foto (amarillo y centrado)
+                etiqueta.style.color = "#f39c12"; 
+                etiqueta.style.fontSize = "12px";
+                etiqueta.style.marginTop = "5px";
+                etiqueta.style.textAlign = "center";
+                etiqueta.style.fontWeight = "bold";
+                
+                // Lo insertamos justo después del input
+                input.parentNode.insertBefore(etiqueta, input.nextSibling);
+            }
+            
+            // Le ponemos el texto con el Precio y Stock actuales
+            etiqueta.innerText = `$${PRECIOS[id].toFixed(2)} c/u | Stock: ${STOCK_MR[id]}`;
+        }
+    });
 });
