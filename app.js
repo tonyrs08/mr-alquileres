@@ -13,7 +13,6 @@ function cambiarVista(v) {
     document.querySelectorAll(".vista").forEach(e => e.style.display = "none");
     document.getElementById(v).style.display = "block";
 
-    // Si salimos de la vista nueva, limpiamos el formulario para evitar errores de edición
     if (v !== "vista-nueva") {
         limpiarFormulario();
     }
@@ -27,7 +26,7 @@ function cambiarVista(v) {
     }
 }
 
-// ================== LÓGICA DE NEGOCIO (Actualizada) ==================
+// ================== LÓGICA DE COTIZACIÓN (EDITABLE) ==================
 async function cotizar() {
     const fechaSel = document.getElementById("fecha").value;
     const horaSel = document.getElementById("hora_entrega").value; 
@@ -37,7 +36,6 @@ async function cotizar() {
     const cRec = +document.getElementById("rectangular").value || 0;
     const cTra = +document.getElementById("transporte").value || 0;
     
-    // Obtenemos el ID de edición actual para excluirlo del chequeo de stock
     const idEdicion = document.getElementById("id_edicion").value;
 
     if (fechaSel) {
@@ -48,7 +46,6 @@ async function cotizar() {
             const q = query(collection(window.db, carpeta), where("fecha", "==", fechaSel));
             const snap = await getDocs(q);
             snap.forEach((doc) => {
-                // SI ESTAMOS EDITANDO, IGNORAMOS NUESTRA PROPIA COTIZACIÓN
                 if (idEdicion && doc.id === idEdicion) return;
 
                 const reg = doc.data();
@@ -73,15 +70,12 @@ async function cotizar() {
         plasticas: cPla, plegables: cPle, cuadradas: cCua, rectangular: cRec, transporte: cTra 
     };
     
-    // Calculamos el precio sugerido
     const calculoMatematico = (actual.plasticas * PRECIOS.plasticas) + (actual.plegables * PRECIOS.plegables) + (actual.cuadradas * PRECIOS.cuadradas) + (actual.rectangular * PRECIOS.rectangular) + actual.transporte;
     
-    // Lo ponemos en el input editable
     document.getElementById("total-manual").value = calculoMatematico.toFixed(2);
 }
 
 async function guardarCotizacion() {
-    // 1. Recogemos datos del formulario
     actual.cliente = document.getElementById("cliente").value;
     actual.direccion = document.getElementById("direccion").value;
     actual.fecha = document.getElementById("fecha").value;
@@ -92,7 +86,6 @@ async function guardarCotizacion() {
     actual.rectangular = +document.getElementById("rectangular").value;
     actual.transporte = +document.getElementById("transporte").value;
     
-    // IMPORTANTE: Tomamos el total del input MANUAL por si hiciste descuento
     actual.total = Number(document.getElementById("total-manual").value);
 
     const idEdicion = document.getElementById("id_edicion").value;
@@ -107,14 +100,12 @@ async function guardarCotizacion() {
 
     try {
         if (idEdicion) {
-            // === MODO EDICIÓN ===
             await updateDoc(doc(window.db, "cotizaciones", idEdicion), {
                 ...actual,
                 updatedAt: new Date().getTime()
             });
             alert("✅ Cotización actualizada correctamente");
         } else {
-            // === MODO CREACIÓN (NUEVA) ===
             let folioMax = 0;
             const carpetas = ["cotizaciones", "agenda", "historial"];
             for (const col of carpetas) {
@@ -131,7 +122,7 @@ async function guardarCotizacion() {
         }
         
         limpiarFormulario();
-        cambiarVista('vista-cotizaciones'); // Volver a la lista
+        cambiarVista('vista-cotizaciones');
 
     } catch (e) { 
         alert("❌ Error: " + e); 
@@ -145,7 +136,6 @@ async function guardarCotizacion() {
 function cargarParaEditar(id, datosEncoded) {
     const datos = JSON.parse(decodeURIComponent(datosEncoded));
     
-    // 1. Rellenar formulario
     document.getElementById("id_edicion").value = id;
     document.getElementById("cliente").value = datos.cliente;
     document.getElementById("direccion").value = datos.direccion;
@@ -157,10 +147,8 @@ function cargarParaEditar(id, datosEncoded) {
     document.getElementById("rectangular").value = datos.rectangular || 0;
     document.getElementById("transporte").value = datos.transporte || 0;
     
-    // Rellenar total manual
     document.getElementById("total-manual").value = Number(datos.total).toFixed(2);
 
-    // 2. Ajustar Interfaz
     document.querySelector(".btn-guardar").innerText = "🔄 ACTUALIZAR CAMBIOS";
     document.getElementById("btn-cancelar-edicion").style.display = "block";
     document.querySelector("#vista-nueva h2").innerText = "📝 Editando: " + datos.cliente;
@@ -180,7 +168,6 @@ function limpiarFormulario() {
     document.getElementById("transporte").value = 0;
     document.getElementById("total-manual").value = "0.00";
     
-    // Reseteo modo edición
     document.getElementById("id_edicion").value = "";
     document.querySelector(".btn-guardar").innerText = "💾 Guardar Cotización";
     document.getElementById("btn-cancelar-edicion").style.display = "none";
@@ -191,13 +178,11 @@ function limpiarFormulario() {
 function cargarListasCompartidas() {
     const { collection, onSnapshot, query, orderBy } = window.firebaseMethods;
 
-    // Cotizaciones
     onSnapshot(query(collection(window.db, "cotizaciones"), orderBy("createdAt", "desc")), (snap) => {
         let html = "";
         snap.forEach((doc) => {
             const x = doc.data();
             const id = doc.id;
-            // Codificar datos para el botón editar
             const datosString = encodeURIComponent(JSON.stringify(x));
 
             html += `<div class="item-lista">
@@ -214,7 +199,6 @@ function cargarListasCompartidas() {
         document.getElementById("lista-cotizaciones").innerHTML = html || "<p>No hay presupuestos</p>";
     });
 
-    // Agenda (SIN CAMBIOS)
     onSnapshot(query(collection(window.db, "agenda"), orderBy("fecha", "asc")), (snap) => {
         let html = "";
         snap.forEach((doc) => {
@@ -245,7 +229,7 @@ function cargarListasCompartidas() {
     });
 }
 
-// ================== FUNCIONES DE ACCIÓN (Confirmar, Abono, Completar) ==================
+// ================== ACCIONES AGENDA ==================
 async function confirmarEnNube(id, datos) {
     if(!confirm("¿Confirmar y agendar?")) return;
     const { addDoc, collection, deleteDoc, doc } = window.firebaseMethods;
@@ -282,7 +266,7 @@ async function completarEvento(id, datos) {
     }
 }
 
-// ================== GASTOS E HISTORIAL ==================
+// ================== GASTOS, RETIROS Y HISTORIAL ==================
 async function registrarGasto() {
     const concepto = prompt("Concepto del gasto:");
     const monto = prompt("Monto ($):");
@@ -300,6 +284,25 @@ async function registrarGasto() {
     } catch (e) { alert("Error: " + e); }
 }
 
+// --- NUEVA FUNCIÓN: REGISTRAR RETIRO DE TRANSPORTE ---
+async function registrarRetiroTransporte() {
+    const monto = prompt("¿Cuánto vas a retirar del fondo de transporte?");
+    if (!monto || isNaN(monto)) return;
+    const concepto = prompt("Motivo del retiro (ej. Gasolina, Taller):", "Retiro de caja");
+    
+    const { addDoc, collection } = window.firebaseMethods;
+    try {
+        await addDoc(collection(window.db, "retiros_transporte"), {
+            concepto,
+            monto: Number(monto),
+            fecha: new Date().toISOString().split('T')[0],
+            mes: new Date().toISOString().substring(0, 7)
+        });
+        alert("➖ Retiro registrado correctamente");
+        cargarHistorial();
+    } catch (e) { alert("Error: " + e); }
+}
+
 function cargarHistorial() {
     const { collection, onSnapshot, query, orderBy, getDocs, where } = window.firebaseMethods;
     const mesSel = document.getElementById("filtro-mes").value;
@@ -309,7 +312,7 @@ function cargarHistorial() {
     onSnapshot(query(collection(window.db, "historial"), orderBy("fecha", "desc")), async (snap) => {
         let ingresosPuros = 0; 
         let totalTransporte = 0; 
-        let html = "<h4>💰 Detalle de Alquileres Realizados</h4>";
+        let html = "<h4>💰 Detalle de Alquileres</h4>";
         
         snap.forEach(docSnap => {
             const x = docSnap.data();
@@ -328,10 +331,11 @@ function cargarHistorial() {
             }
         });
 
+        // 1. Obtener Gastos Generales
         const qG = query(collection(window.db, "gastos"), where("mes", "==", mesSel));
         const snapG = await getDocs(qG);
         let gastosTotales = 0;
-        let htmlG = "<h4 style='color:#e74c3c; margin-top:20px;'>💸 Detalle de Gastos</h4>";
+        let htmlG = "<h4 style='color:#e74c3c; margin-top:20px;'>💸 Gastos Generales</h4>";
         
         snapG.forEach(docSnap => {
             const g = docSnap.data();
@@ -342,8 +346,25 @@ function cargarHistorial() {
             </div>`;
         });
 
-        const netoReal = ingresosPuros - gastosTotales;
+        // 2. Obtener Retiros de Transporte
+        const qR = query(collection(window.db, "retiros_transporte"), where("mes", "==", mesSel));
+        const snapR = await getDocs(qR);
+        let totalRetirosTransporte = 0;
+        let htmlR = "<h4 style='color:#3498db; margin-top:20px;'>🚚 Retiros de Transporte</h4>";
 
+        snapR.forEach(docSnap => {
+            const r = docSnap.data();
+            totalRetirosTransporte += Number(r.monto);
+            htmlR += `<div class="item-lista" style="border-left:5px solid #3498db; background:rgba(52, 152, 219, 0.05); display:flex; justify-content:space-between; align-items:center; padding:10px; margin-bottom:10px;">
+                <span><b>${r.concepto}</b><br><small>-$${Number(r.monto).toFixed(2)}</small></span>
+                <button class="btn-borrar" style="width:auto; padding:8px; margin:0;" onclick='borrarDeNube("retiros_transporte", "${docSnap.id}")'>🗑</button>
+            </div>`;
+        });
+
+        const netoReal = ingresosPuros - gastosTotales;
+        const transporteDisponible = totalTransporte - totalRetirosTransporte;
+
+        // PANEL DE RESULTADOS CON BOTÓN DE RETIRO EN LA CAJA AZUL
         document.getElementById("resumen-mensual").innerHTML = `
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
                 <div style="background: rgba(46, 204, 113, 0.1); padding: 8px; border-radius: 10px; border: 1px solid #2ecc71; text-align: center;">
@@ -356,9 +377,17 @@ function cargarHistorial() {
                 </div>
             </div>
 
-            <div style="background: rgba(52, 152, 219, 0.15); padding: 12px; border-radius: 12px; border: 1px solid #3498db; text-align: center; margin-bottom: 10px;">
-                <span style="color: #3498db; font-size: 0.7rem; font-weight: bold; display: block; text-transform: uppercase;">📦 Caja de Transporte (Fondo Carro)</span>
-                <span style="font-size: 1.5rem; font-weight: bold; color: #3498db;">$${totalTransporte.toFixed(2)}</span>
+            <div style="background: rgba(52, 152, 219, 0.15); padding: 12px; border-radius: 12px; border: 1px solid #3498db; text-align: center; margin-bottom: 10px; position:relative;">
+                <span style="color: #3498db; font-size: 0.7rem; font-weight: bold; display: block; text-transform: uppercase;">📦 Caja de Transporte (Disponible)</span>
+                <span style="font-size: 1.5rem; font-weight: bold; color: #3498db;">$${transporteDisponible.toFixed(2)}</span>
+                
+                <div style="font-size:0.75rem; color:#aaa; margin-top:5px; border-top:1px dashed #3498db; padding-top:5px;">
+                    Ingresos: $${totalTransporte.toFixed(2)} | Retiros: -$${totalRetirosTransporte.toFixed(2)}
+                </div>
+
+                <button onclick="registrarRetiroTransporte()" style="margin-top:8px; background:#3498db; color:white; border:none; border-radius:5px; padding:5px 12px; font-weight:bold; cursor:pointer;">
+                    ➖ Retirar
+                </button>
             </div>
 
             <div style="background: #d4af37; padding: 15px; border-radius: 15px; color: #050b1a; text-align: center; box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);">
@@ -367,15 +396,17 @@ function cargarHistorial() {
             </div>
         `;
 
-        document.getElementById("lista-historial").innerHTML = html + htmlG;
+        document.getElementById("lista-historial").innerHTML = html + htmlG + htmlR;
     });
 }
 
-// ================== UTILIDADES Y VIGILANTE ==================
+// ================== UTILIDADES ==================
 async function borrarDeNube(tipo, id) {
     if(!confirm("¿Borrar definitivamente?")) return;
     await window.firebaseMethods.deleteDoc(window.firebaseMethods.doc(window.db, tipo, id));
-    if (tipo === "historial" || tipo === "gastos") cargarHistorial();
+    
+    // Si borramos un retiro o gasto, recargamos el historial
+    if (tipo === "historial" || tipo === "gastos" || tipo === "retiros_transporte") cargarHistorial();
 }
 
 // ================== PDF Y EXPORTACIÓN ==================
@@ -421,12 +452,10 @@ window.addEventListener('load', () => {
     cargarListasCompartidas(); 
     iniciarVigilante();
 
-    // Configurar fecha actual en el filtro
     const hoy = new Date();
     const fMes = document.getElementById("filtro-mes");
     if(fMes) fMes.value = hoy.toISOString().substring(0, 7);
 
-    // INSERTAR ETIQUETAS AMARILLAS DE PRECIO Y STOCK
     const items = ["plasticas", "plegables", "cuadradas", "rectangular"];
     items.forEach(id => {
         const input = document.getElementById(id);

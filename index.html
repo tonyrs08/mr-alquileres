@@ -92,13 +92,13 @@
         </section>
 
         <section id="vista-historial" class="card vista" style="display:none">
-            <div class="card-header"><h2>📜 Historial y Gastos</h2></div>
+            <div class="card-header"><h2>📜 Historial y Caja</h2></div>
             
             <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 15px; margin-bottom: 20px; border: 1px solid var(--dorado);">
                 <label>Seleccionar Mes para Reporte:</label>
                 <input type="month" id="filtro-mes" onchange="cargarHistorial()" style="margin-bottom:10px;">
                 
-                <button onclick="registrarGasto()" style="width:100%; padding:12px; background:var(--rojo); color:white; border:none; border-radius:10px; font-weight:bold; cursor:pointer;">💸 REGISTRAR GASTO</button>
+                <button onclick="registrarGasto()" style="width:100%; padding:12px; background:var(--rojo); color:white; border:none; border-radius:10px; font-weight:bold; cursor:pointer;">💸 REGISTRAR GASTO GENERAL</button>
 
                 <div id="resumen-mensual" style="margin-top:15px; text-align: center; border-top: 1px solid rgba(212,175,55,0.3); padding-top: 10px;">
                     </div>
@@ -131,7 +131,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc, getDocs, where, limit, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // Asegúrate de que esta configuración coincida con la tuya
         const firebaseConfig = {
           apiKey: "AIzaSyATGafzio5ibuVZtc_K8iEkibeg8mT2G4I",
           authDomain: "mr-alquileres.firebaseapp.com",

@@ -159,7 +159,7 @@ input:focus, textarea:focus {
   text-transform: uppercase;
 }
 
-/* Listas de Cotizaciones y Agenda - DISEÑO REPARADO */
+/* Listas de Cotizaciones y Agenda */
 .item-lista {
   background: #162641;
   padding: 15px;
@@ -182,7 +182,7 @@ input:focus, textarea:focus {
   line-height: 1.4;
 }
 
-/* Rejilla de botones: 3 columnas iguales */
+/* Rejilla de botones: 3 columnas */
 .acciones {
   display: grid;
   grid-template-columns: repeat(3, 1fr); 
@@ -199,7 +199,7 @@ input:focus, textarea:focus {
   font-weight: bold;
   cursor: pointer;
   display: flex;
-  flex-direction: column; /* Icono arriba, texto abajo */
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 55px; 
@@ -209,14 +209,13 @@ input:focus, textarea:focus {
 .btn-pdf { background: var(--rojo); color: white; }
 .btn-confirmar { background: var(--verde); color: var(--azul-oscuro); }
 
-/* Botón eliminar corregido para ocupar todo el ancho abajo */
 .btn-borrar {
   grid-column: span 3; 
   background: rgba(231, 76, 60, 0.1) !important;
   color: #e74c3c !important;
   border: 1px solid #e74c3c !important;
   margin-top: 5px;
-  flex-direction: row !important; /* Horizontal para el de borrar */
+  flex-direction: row !important;
   min-height: 40px !important;
   gap: 8px;
 }
@@ -272,7 +271,7 @@ input:focus, textarea:focus {
   }
 }
 
-/* --- NUEVO ESTILO PARA EL INPUT DE TOTAL EDITABLE --- */
+/* Estilo para el input de total editable */
 .total-input {
   background: transparent;
   border: none;
