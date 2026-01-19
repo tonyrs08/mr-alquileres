@@ -271,3 +271,23 @@ input:focus, textarea:focus {
     font-size: 1.4rem;
   }
 }
+
+/* --- NUEVO ESTILO PARA EL INPUT DE TOTAL EDITABLE --- */
+.total-input {
+  background: transparent;
+  border: none;
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: var(--dorado);
+  text-align: center;
+  width: 100%;
+  border-bottom: 2px dashed rgba(212, 175, 55, 0.3);
+  padding: 5px;
+  margin-top: 5px;
+}
+
+.total-input:focus {
+  outline: none;
+  border-bottom: 2px solid var(--dorado);
+  background: rgba(212, 175, 55, 0.05);
+}

@@ -18,8 +18,10 @@
 
     <div class="container">
         <section id="vista-nueva" class="card vista">
-            <div class="card-header"><h2>📝 Nueva Cotización</h2></div>
+            <div class="card-header"><h2>📝 Cotización</h2></div>
             
+            <input type="hidden" id="id_edicion">
+
             <div class="input-group">
                 <label>Nombre del Cliente</label>
                 <input type="text" id="cliente" placeholder="Ej: Juan Pérez">
@@ -70,11 +72,13 @@
             </div>
 
             <div class="total-container">
-                <div class="total-label">Presupuesto Estimado</div>
-                <div id="total" class="total">$0.00</div>
+                <div class="total-label">Total Final (Editable)</div>
+                <input type="number" id="total-manual" class="total-input" value="0.00" step="0.01">
             </div>
 
             <button class="btn-guardar" onclick="guardarCotizacion()">💾 Guardar Cotización</button>
+            
+            <button id="btn-cancelar-edicion" onclick="limpiarFormulario()" style="display:none; width:100%; margin-top:10px; background:#555; border:none; padding:10px; color:white; border-radius:10px; cursor:pointer;">Cancelar Edición</button>
         </section>
 
         <section id="vista-cotizaciones" class="card vista" style="display:none">
@@ -127,15 +131,16 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc, getDocs, where, limit, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+        // Asegúrate de que esta configuración coincida con la tuya
         const firebaseConfig = {
-  apiKey: "AIzaSyATGafzio5ibuVZtc_K8iEkibeg8mT2G4I",
-  authDomain: "mr-alquileres.firebaseapp.com",
-  projectId: "mr-alquileres",
-  storageBucket: "mr-alquileres.firebasestorage.app",
-  messagingSenderId: "506844660682",
-  appId: "1:506844660682:web:58e72a2bbec9d9daf1c533",
-  measurementId: "G-EBR0STW9EH"
-};
+          apiKey: "AIzaSyATGafzio5ibuVZtc_K8iEkibeg8mT2G4I",
+          authDomain: "mr-alquileres.firebaseapp.com",
+          projectId: "mr-alquileres",
+          storageBucket: "mr-alquileres.firebasestorage.app",
+          messagingSenderId: "506844660682",
+          appId: "1:506844660682:web:58e72a2bbec9d9daf1c533",
+          measurementId: "G-EBR0STW9EH"
+        };
 
         const app = initializeApp(firebaseConfig);
         window.db = getFirestore(app);

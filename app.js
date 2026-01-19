@@ -13,6 +13,11 @@ function cambiarVista(v) {
     document.querySelectorAll(".vista").forEach(e => e.style.display = "none");
     document.getElementById(v).style.display = "block";
 
+    // Si salimos de la vista nueva, limpiamos el formulario para evitar errores de edición
+    if (v !== "vista-nueva") {
+        limpiarFormulario();
+    }
+
     if (v === "vista-cotizaciones" || v === "vista-agenda") cargarListasCompartidas();
     
     if (v === "vista-historial") {
@@ -22,7 +27,7 @@ function cambiarVista(v) {
     }
 }
 
-// ================== LÓGICA DE NEGOCIO ==================
+// ================== LÓGICA DE NEGOCIO (Actualizada) ==================
 async function cotizar() {
     const fechaSel = document.getElementById("fecha").value;
     const horaSel = document.getElementById("hora_entrega").value; 
@@ -31,6 +36,9 @@ async function cotizar() {
     const cCua = +document.getElementById("cuadradas").value || 0;
     const cRec = +document.getElementById("rectangular").value || 0;
     const cTra = +document.getElementById("transporte").value || 0;
+    
+    // Obtenemos el ID de edición actual para excluirlo del chequeo de stock
+    const idEdicion = document.getElementById("id_edicion").value;
 
     if (fechaSel) {
         let ocupado = { plasticas: 0, plegables: 0, cuadradas: 0, rectangular: 0 };
@@ -40,6 +48,9 @@ async function cotizar() {
             const q = query(collection(window.db, carpeta), where("fecha", "==", fechaSel));
             const snap = await getDocs(q);
             snap.forEach((doc) => {
+                // SI ESTAMOS EDITANDO, IGNORAMOS NUESTRA PROPIA COTIZACIÓN
+                if (idEdicion && doc.id === idEdicion) return;
+
                 const reg = doc.data();
                 ocupado.plasticas += Number(reg.plasticas || 0);
                 ocupado.plegables += Number(reg.plegables || 0);
@@ -62,40 +73,118 @@ async function cotizar() {
         plasticas: cPla, plegables: cPle, cuadradas: cCua, rectangular: cRec, transporte: cTra 
     };
     
-    actual.total = (actual.plasticas * PRECIOS.plasticas) + (actual.plegables * PRECIOS.plegables) + (actual.cuadradas * PRECIOS.cuadradas) + (actual.rectangular * PRECIOS.rectangular) + actual.transporte;
-    document.getElementById("total").innerText = `$${actual.total.toFixed(2)}`;
+    // Calculamos el precio sugerido
+    const calculoMatematico = (actual.plasticas * PRECIOS.plasticas) + (actual.plegables * PRECIOS.plegables) + (actual.cuadradas * PRECIOS.cuadradas) + (actual.rectangular * PRECIOS.rectangular) + actual.transporte;
+    
+    // Lo ponemos en el input editable
+    document.getElementById("total-manual").value = calculoMatematico.toFixed(2);
 }
 
 async function guardarCotizacion() {
+    // 1. Recogemos datos del formulario
+    actual.cliente = document.getElementById("cliente").value;
+    actual.direccion = document.getElementById("direccion").value;
+    actual.fecha = document.getElementById("fecha").value;
+    actual.hora = document.getElementById("hora_entrega").value;
+    actual.plasticas = +document.getElementById("plasticas").value;
+    actual.plegables = +document.getElementById("plegables").value;
+    actual.cuadradas = +document.getElementById("cuadradas").value;
+    actual.rectangular = +document.getElementById("rectangular").value;
+    actual.transporte = +document.getElementById("transporte").value;
+    
+    // IMPORTANTE: Tomamos el total del input MANUAL por si hiciste descuento
+    actual.total = Number(document.getElementById("total-manual").value);
+
+    const idEdicion = document.getElementById("id_edicion").value;
+
     if (!actual.cliente || actual.total <= 0) return alert("⚠️ Completa los datos");
+    
     const btn = document.querySelector(".btn-guardar");
     btn.disabled = true;
-    btn.innerText = "⏳ GUARDANDO...";
+    btn.innerText = "⏳ PROCESANDO...";
 
-    const { addDoc, collection, getDocs, query, orderBy, limit } = window.firebaseMethods;
+    const { addDoc, collection, updateDoc, doc, getDocs, query, orderBy, limit } = window.firebaseMethods;
 
     try {
-        let folioMax = 0;
-        const carpetas = ["cotizaciones", "agenda", "historial"];
-        for (const col of carpetas) {
-            const q = query(collection(window.db, col), orderBy("folio", "desc"), limit(1));
-            const s = await getDocs(q);
-            if(!s.empty) {
-                const f = parseInt(s.docs[0].data().folio) || 0;
-                if(f > folioMax) folioMax = f;
+        if (idEdicion) {
+            // === MODO EDICIÓN ===
+            await updateDoc(doc(window.db, "cotizaciones", idEdicion), {
+                ...actual,
+                updatedAt: new Date().getTime()
+            });
+            alert("✅ Cotización actualizada correctamente");
+        } else {
+            // === MODO CREACIÓN (NUEVA) ===
+            let folioMax = 0;
+            const carpetas = ["cotizaciones", "agenda", "historial"];
+            for (const col of carpetas) {
+                const q = query(collection(window.db, col), orderBy("folio", "desc"), limit(1));
+                const s = await getDocs(q);
+                if(!s.empty) {
+                    const f = parseInt(s.docs[0].data().folio) || 0;
+                    if(f > folioMax) folioMax = f;
+                }
             }
+            let folioTexto = (folioMax + 1).toString().padStart(3, '0');
+            await addDoc(collection(window.db, "cotizaciones"), { ...actual, folio: folioTexto, createdAt: new Date().getTime() });
+            alert(`✅ Guardada ✔ N°: ${folioTexto}`);
         }
         
-        let folioTexto = (folioMax + 1).toString().padStart(3, '0');
-        await addDoc(collection(window.db, "cotizaciones"), { ...actual, folio: folioTexto, createdAt: new Date().getTime() });
+        limpiarFormulario();
+        cambiarVista('vista-cotizaciones'); // Volver a la lista
 
-        alert(`✅ Guardada ✔ N°: ${folioTexto}`);
-        location.reload(); 
     } catch (e) { 
         alert("❌ Error: " + e); 
+    } finally {
         btn.disabled = false;
         btn.innerText = "💾 Guardar Cotización";
     }
+}
+
+// ================== FUNCIONES PARA EDICIÓN ==================
+function cargarParaEditar(id, datosEncoded) {
+    const datos = JSON.parse(decodeURIComponent(datosEncoded));
+    
+    // 1. Rellenar formulario
+    document.getElementById("id_edicion").value = id;
+    document.getElementById("cliente").value = datos.cliente;
+    document.getElementById("direccion").value = datos.direccion;
+    document.getElementById("fecha").value = datos.fecha;
+    document.getElementById("hora_entrega").value = datos.hora || "";
+    document.getElementById("plasticas").value = datos.plasticas || 0;
+    document.getElementById("plegables").value = datos.plegables || 0;
+    document.getElementById("cuadradas").value = datos.cuadradas || 0;
+    document.getElementById("rectangular").value = datos.rectangular || 0;
+    document.getElementById("transporte").value = datos.transporte || 0;
+    
+    // Rellenar total manual
+    document.getElementById("total-manual").value = Number(datos.total).toFixed(2);
+
+    // 2. Ajustar Interfaz
+    document.querySelector(".btn-guardar").innerText = "🔄 ACTUALIZAR CAMBIOS";
+    document.getElementById("btn-cancelar-edicion").style.display = "block";
+    document.querySelector("#vista-nueva h2").innerText = "📝 Editando: " + datos.cliente;
+
+    cambiarVista("vista-nueva");
+}
+
+function limpiarFormulario() {
+    document.getElementById("cliente").value = "";
+    document.getElementById("direccion").value = "";
+    document.getElementById("fecha").value = "";
+    document.getElementById("hora_entrega").value = "";
+    document.getElementById("plasticas").value = 0;
+    document.getElementById("plegables").value = 0;
+    document.getElementById("cuadradas").value = 0;
+    document.getElementById("rectangular").value = 0;
+    document.getElementById("transporte").value = 0;
+    document.getElementById("total-manual").value = "0.00";
+    
+    // Reseteo modo edición
+    document.getElementById("id_edicion").value = "";
+    document.querySelector(".btn-guardar").innerText = "💾 Guardar Cotización";
+    document.getElementById("btn-cancelar-edicion").style.display = "none";
+    document.querySelector("#vista-nueva h2").innerText = "📝 Cotización";
 }
 
 // ================== LISTADOS Y NUBE ==================
@@ -108,10 +197,14 @@ function cargarListasCompartidas() {
         snap.forEach((doc) => {
             const x = doc.data();
             const id = doc.id;
+            // Codificar datos para el botón editar
+            const datosString = encodeURIComponent(JSON.stringify(x));
+
             html += `<div class="item-lista">
                 <h3>${x.cliente.toUpperCase()}</h3>
                 <div class="info-grid">📍 ${x.direccion}<br>📅 ${x.fecha} | 🕒 ${x.hora || '--:--'}<br><b>Total: $${Number(x.total).toFixed(2)}</b></div>
-                <div class="acciones" style="grid-template-columns: 1fr 1fr;">
+                <div class="acciones" style="grid-template-columns: 1fr 1fr 1fr;">
+                    <button class="btn-confirmar" style="background:#f39c12; color:white;" onclick='cargarParaEditar("${id}", "${datosString}")'><span>✏️</span> EDITAR</button>
                     <button class="btn-pdf" onclick='descargarPDF_Firebase(${JSON.stringify(x)})'><span>📄</span> PDF</button>
                     <button class="btn-confirmar" onclick='confirmarEnNube("${id}", ${JSON.stringify(x)})'><span>✅</span> Agendar</button>
                     <button class="btn-borrar" onclick='borrarDeNube("cotizaciones", "${id}")'>🗑 ELIMINAR</button>
@@ -121,7 +214,7 @@ function cargarListasCompartidas() {
         document.getElementById("lista-cotizaciones").innerHTML = html || "<p>No hay presupuestos</p>";
     });
 
-    // Agenda
+    // Agenda (SIN CAMBIOS)
     onSnapshot(query(collection(window.db, "agenda"), orderBy("fecha", "asc")), (snap) => {
         let html = "";
         snap.forEach((doc) => {
@@ -152,7 +245,7 @@ function cargarListasCompartidas() {
     });
 }
 
-// ================== FUNCIONES DE ACCIÓN ==================
+// ================== FUNCIONES DE ACCIÓN (Confirmar, Abono, Completar) ==================
 async function confirmarEnNube(id, datos) {
     if(!confirm("¿Confirmar y agendar?")) return;
     const { addDoc, collection, deleteDoc, doc } = window.firebaseMethods;
@@ -220,9 +313,7 @@ function cargarHistorial() {
         
         snap.forEach(docSnap => {
             const x = docSnap.data();
-            // Solo sumamos si el registro pertenece al mes seleccionado
             if (x.fecha.includes(mesSel)) {
-                // Separamos el transporte del total
                 const montoTrans = Number(x.transporte || 0);
                 const montoAlquiler = Number(x.total) - montoTrans;
                 
@@ -253,7 +344,6 @@ function cargarHistorial() {
 
         const netoReal = ingresosPuros - gastosTotales;
 
-        // PANEL DE RESULTADOS CON SEPARACIÓN DE CAJA
         document.getElementById("resumen-mensual").innerHTML = `
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
                 <div style="background: rgba(46, 204, 113, 0.1); padding: 8px; border-radius: 10px; border: 1px solid #2ecc71; text-align: center;">
@@ -327,7 +417,6 @@ function iniciarVigilante() {
 }
 
 // ================== CARGA INICIAL Y STOCK VISIBLE ==================
-// ================== CARGA INICIAL ==================
 window.addEventListener('load', () => { 
     cargarListasCompartidas(); 
     iniciarVigilante();
@@ -337,31 +426,22 @@ window.addEventListener('load', () => {
     const fMes = document.getElementById("filtro-mes");
     if(fMes) fMes.value = hoy.toISOString().substring(0, 7);
 
-    // --- NUEVO: INSERTAR ETIQUETAS AMARILLAS DEBAJO DE LOS INPUTS ---
+    // INSERTAR ETIQUETAS AMARILLAS DE PRECIO Y STOCK
     const items = ["plasticas", "plegables", "cuadradas", "rectangular"];
-    
     items.forEach(id => {
         const input = document.getElementById(id);
         if (input) {
-            // Buscamos si ya existe el letrero para no duplicarlo
             let etiqueta = document.getElementById(`info-${id}`);
-            
             if (!etiqueta) {
-                // Si no existe, lo creamos
                 etiqueta = document.createElement("div");
                 etiqueta.id = `info-${id}`;
-                // Estilos para que se vea igual a la foto (amarillo y centrado)
                 etiqueta.style.color = "#f39c12"; 
                 etiqueta.style.fontSize = "12px";
                 etiqueta.style.marginTop = "5px";
                 etiqueta.style.textAlign = "center";
                 etiqueta.style.fontWeight = "bold";
-                
-                // Lo insertamos justo después del input
                 input.parentNode.insertBefore(etiqueta, input.nextSibling);
             }
-            
-            // Le ponemos el texto con el Precio y Stock actuales
             etiqueta.innerText = `$${PRECIOS[id].toFixed(2)} c/u | Stock: ${STOCK_MR[id]}`;
         }
     });
