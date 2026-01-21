@@ -12,7 +12,7 @@ body {
   font-family: 'Inter', sans-serif;
   background: radial-gradient(circle at top, #0b1f3a 0%, #050b1a 100%);
   color: var(--blanco);
-  padding-bottom: 100px;
+  padding-bottom: 20px;
   min-height: 100vh;
 }
 
@@ -20,8 +20,93 @@ body {
 header {
   text-align: center;
   padding: 30px 10px;
+  position: relative; /* Para posicionar el botón menú */
 }
 
+/* Botón Hamburguesa */
+.hamburger-btn {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: none;
+  border: none;
+  color: var(--dorado);
+  font-size: 2rem;
+  cursor: pointer;
+  z-index: 1100;
+}
+
+/* MENÚ LATERAL (DRAWER) */
+#menu-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.7);
+  z-index: 1200;
+  backdrop-filter: blur(2px);
+}
+
+#side-menu {
+  position: fixed;
+  top: 0;
+  left: -280px; /* Oculto por defecto */
+  width: 260px;
+  height: 100%;
+  background: var(--azul-card);
+  border-right: 2px solid var(--dorado);
+  z-index: 1300;
+  transition: left 0.3s ease;
+  padding-top: 20px;
+  box-shadow: 5px 0 15px rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+}
+
+#side-menu.active {
+  left: 0;
+}
+
+.menu-header {
+  text-align: center;
+  padding: 20px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+  margin-bottom: 10px;
+}
+
+.menu-logo {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 2px solid var(--dorado);
+}
+
+.menu-item {
+  background: transparent;
+  border: none;
+  color: white;
+  padding: 15px 20px;
+  text-align: left;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.menu-item:hover {
+  background: rgba(212, 175, 55, 0.1);
+  color: var(--dorado);
+}
+
+.menu-icon {
+  font-size: 1.2rem;
+}
+
+/* Resto del estilo */
 .logo-container {
   display: flex;
   justify-content: center;
@@ -220,39 +305,16 @@ input:focus, textarea:focus {
   gap: 8px;
 }
 
-/* Navegación Inferior */
-.nav-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  background: #0b1f3a;
-  display: flex;
-  justify-content: space-around;
-  padding: 12px 0;
-  border-top: 2px solid var(--dorado);
-  backdrop-filter: blur(10px);
-  z-index: 1000;
+/* Estilo especial para papelera */
+.item-papelera {
+    background: #111; /* Más oscuro */
+    opacity: 0.8;
+    border-left: 4px solid #777;
 }
 
-.nav-item {
-  background: none;
-  border: none;
-  color: white;
-  text-align: center;
-  cursor: pointer;
-  flex: 1;
-}
-
-.nav-icon { 
-  display: block; 
-  font-size: 1.4rem; 
-  margin-bottom: 2px;
-}
-
-.nav-text { 
-  font-size: 0.75rem; 
-  color: #aaa; 
+.btn-restaurar {
+    background: #3498db;
+    color: white;
 }
 
 /* Responsive */

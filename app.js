@@ -8,16 +8,32 @@ const STOCK_MR = { plasticas: 70, plegables: 60, cuadradas: 15, rectangular: 1 }
 
 let actual = { cliente: "", direccion: "", fecha: "", hora: "", plasticas: 0, plegables: 0, cuadradas: 0, rectangular: 0, transporte: 0, total: 0 };
 
-// ================== NAVEGACIÓN ==================
+// ================== NAVEGACIÓN Y MENÚ ==================
+function toggleMenu() {
+    const menu = document.getElementById("side-menu");
+    const overlay = document.getElementById("menu-overlay");
+    if (menu.classList.contains("active")) {
+        menu.classList.remove("active");
+        overlay.style.display = "none";
+    } else {
+        menu.classList.add("active");
+        overlay.style.display = "block";
+    }
+}
+
 function cambiarVista(v) {
     document.querySelectorAll(".vista").forEach(e => e.style.display = "none");
     document.getElementById(v).style.display = "block";
+
+    // Cerrar menú al seleccionar
+    toggleMenu();
 
     if (v !== "vista-nueva") {
         limpiarFormulario();
     }
 
     if (v === "vista-cotizaciones" || v === "vista-agenda") cargarListasCompartidas();
+    if (v === "vista-papelera") cargarPapelera();
     
     if (v === "vista-historial") {
         const hoy = new Date();
@@ -46,13 +62,15 @@ async function cotizar() {
             const q = query(collection(window.db, carpeta), where("fecha", "==", fechaSel));
             const snap = await getDocs(q);
             snap.forEach((doc) => {
+                const data = doc.data();
+                // Ignorar las que están en papelera o si es la misma que editamos
+                if (data.estado === "papelera") return; 
                 if (idEdicion && doc.id === idEdicion) return;
 
-                const reg = doc.data();
-                ocupado.plasticas += Number(reg.plasticas || 0);
-                ocupado.plegables += Number(reg.plegables || 0);
-                ocupado.cuadradas += Number(reg.cuadradas || 0);
-                ocupado.rectangular += Number(reg.rectangular || 0);
+                ocupado.plasticas += Number(data.plasticas || 0);
+                ocupado.plegables += Number(data.plegables || 0);
+                ocupado.cuadradas += Number(data.cuadradas || 0);
+                ocupado.rectangular += Number(data.rectangular || 0);
             });
         }
 
@@ -102,7 +120,8 @@ async function guardarCotizacion() {
         if (idEdicion) {
             await updateDoc(doc(window.db, "cotizaciones", idEdicion), {
                 ...actual,
-                updatedAt: new Date().getTime()
+                updatedAt: new Date().getTime(),
+                estado: "pendiente" // Aseguramos que no esté en papelera al guardar
             });
             alert("✅ Cotización actualizada correctamente");
         } else {
@@ -117,7 +136,7 @@ async function guardarCotizacion() {
                 }
             }
             let folioTexto = (folioMax + 1).toString().padStart(3, '0');
-            await addDoc(collection(window.db, "cotizaciones"), { ...actual, folio: folioTexto, createdAt: new Date().getTime() });
+            await addDoc(collection(window.db, "cotizaciones"), { ...actual, folio: folioTexto, estado: "pendiente", createdAt: new Date().getTime() });
             alert(`✅ Guardada ✔ N°: ${folioTexto}`);
         }
         
@@ -182,6 +201,9 @@ function cargarListasCompartidas() {
         let html = "";
         snap.forEach((doc) => {
             const x = doc.data();
+            // FILTRO: Si está en papelera, NO lo mostramos aquí
+            if (x.estado === "papelera") return;
+
             const id = doc.id;
             const datosString = encodeURIComponent(JSON.stringify(x));
 
@@ -192,7 +214,7 @@ function cargarListasCompartidas() {
                     <button class="btn-confirmar" style="background:#f39c12; color:white;" onclick='cargarParaEditar("${id}", "${datosString}")'><span>✏️</span> EDITAR</button>
                     <button class="btn-pdf" onclick='descargarPDF_Firebase(${JSON.stringify(x)})'><span>📄</span> PDF</button>
                     <button class="btn-confirmar" onclick='confirmarEnNube("${id}", ${JSON.stringify(x)})'><span>✅</span> Agendar</button>
-                    <button class="btn-borrar" onclick='borrarDeNube("cotizaciones", "${id}")'>🗑 ELIMINAR</button>
+                    <button class="btn-borrar" onclick='borrarDeNube("cotizaciones", "${id}")'>🗑 PAPELERA</button>
                 </div>
             </div>`;
         });
@@ -229,6 +251,63 @@ function cargarListasCompartidas() {
     });
 }
 
+// ================== PAPELERA DE RECICLAJE ==================
+function cargarPapelera() {
+    const { collection, getDocs, query, where, orderBy } = window.firebaseMethods;
+    
+    // Consultamos solo los que tienen estado == "papelera"
+    const q = query(collection(window.db, "cotizaciones"), where("estado", "==", "papelera"));
+    
+    getDocs(q).then((snap) => {
+        let html = "";
+        if (snap.empty) {
+            document.getElementById("lista-papelera").innerHTML = "<p>La papelera está vacía.</p>";
+            return;
+        }
+
+        snap.forEach((doc) => {
+            const x = doc.data();
+            const id = doc.id;
+            html += `<div class="item-lista item-papelera">
+                <h3 style="color:#aaa;">${x.cliente.toUpperCase()} (Eliminado)</h3>
+                <div class="info-grid">📅 Evento: ${x.fecha}<br>Total: $${Number(x.total).toFixed(2)}</div>
+                <div class="acciones">
+                    <button class="btn-confirmar btn-restaurar" style="grid-column: span 3;" onclick='restaurarDePapelera("${id}")'>♻️ RESTAURAR COTIZACIÓN</button>
+                </div>
+            </div>`;
+        });
+        document.getElementById("lista-papelera").innerHTML = html;
+    });
+}
+
+async function restaurarDePapelera(id) {
+    if(!confirm("¿Volver a activar esta cotización?")) return;
+    const { updateDoc, doc } = window.firebaseMethods;
+    try {
+        await updateDoc(doc(window.db, "cotizaciones", id), { estado: "pendiente" });
+        alert("♻️ Cotización restaurada. Revisa la lista de pendientes.");
+        cargarPapelera(); // Refrescar papelera
+    } catch (e) { alert("Error: " + e); }
+}
+
+async function limpiezaAutomaticaPapelera() {
+    // Busca cotizaciones en papelera cuya fecha de evento ya pasó
+    const { collection, getDocs, query, where, deleteDoc, doc } = window.firebaseMethods;
+    const q = query(collection(window.db, "cotizaciones"), where("estado", "==", "papelera"));
+    
+    const snap = await getDocs(q);
+    const hoy = new Date().toISOString().split('T')[0]; // Fecha formato YYYY-MM-DD
+
+    snap.forEach(async (d) => {
+        const data = d.data();
+        // Si la fecha del evento es menor (anterior) a hoy, se borra definitivamente
+        if (data.fecha && data.fecha < hoy) {
+            console.log("Auto-limpieza: Borrando evento pasado de papelera", data.cliente);
+            await deleteDoc(doc(window.db, "cotizaciones", d.id));
+        }
+    });
+}
+
 // ================== ACCIONES AGENDA ==================
 async function confirmarEnNube(id, datos) {
     if(!confirm("¿Confirmar y agendar?")) return;
@@ -255,14 +334,14 @@ async function registrarAbono(id, datos) {
 async function completarEvento(id, datos) {
     const { addDoc, collection, deleteDoc, doc, updateDoc } = window.firebaseMethods;
     if (!datos.estado || datos.estado === "pendiente") {
-        if(!confirm("¿Confirmar ENTREGA?")) return;
+        if(!confirm("¿Confirmar ENTREGA?\n(Esto sumará el dinero a la Caja)")) return;
         await updateDoc(doc(window.db, "agenda", id), { estado: "entregado" });
-        alert("🚚 Entregado. Pendiente de recoger.");
+        alert("🚚 Entregado. Dinero registrado en Historial.");
     } else {
         if(!confirm("¿El equipo regresó a bodega?")) return;
         await addDoc(collection(window.db, "historial"), { ...datos, finalizadoAt: new Date().getTime(), estado: "finalizado" });
         await deleteDoc(doc(window.db, "agenda", id));
-        alert("✅ Guardado en Historial");
+        alert("✅ Evento Cerrado y Archivado");
     }
 }
 
@@ -284,7 +363,6 @@ async function registrarGasto() {
     } catch (e) { alert("Error: " + e); }
 }
 
-// --- NUEVA FUNCIÓN: REGISTRAR RETIRO DE TRANSPORTE ---
 async function registrarRetiroTransporte() {
     const monto = prompt("¿Cuánto vas a retirar del fondo de transporte?");
     if (!monto || isNaN(monto)) return;
@@ -309,12 +387,14 @@ function cargarHistorial() {
     
     if (!mesSel) return;
 
-    onSnapshot(query(collection(window.db, "historial"), orderBy("fecha", "desc")), async (snap) => {
+    // Escuchamos 'historial' (eventos finalizados)
+    onSnapshot(query(collection(window.db, "historial"), orderBy("fecha", "desc")), async (snapHistorial) => {
         let ingresosPuros = 0; 
         let totalTransporte = 0; 
-        let html = "<h4>💰 Detalle de Alquileres</h4>";
+        let html = "<h4>💰 Detalle de Alquileres (Finalizados & Entregados)</h4>";
         
-        snap.forEach(docSnap => {
+        // 1. Sumamos lo que ya está FINALIZADO (en historial)
+        snapHistorial.forEach(docSnap => {
             const x = docSnap.data();
             if (x.fecha.includes(mesSel)) {
                 const montoTrans = Number(x.transporte || 0);
@@ -324,14 +404,36 @@ function cargarHistorial() {
                 totalTransporte += montoTrans;
 
                 html += `<div class="item-lista" style="border-left:5px solid #2ecc71; display:flex; justify-content:space-between; align-items:center; padding:10px; margin-bottom:10px;">
-                    <span><b>${x.cliente.toUpperCase()}</b><br>
+                    <span><b>${x.cliente.toUpperCase()}</b> <small>(Archivado)</small><br>
                     <small>${x.fecha} | Mobiliario: $${montoAlquiler.toFixed(2)} | Trp: $${montoTrans.toFixed(2)}</small></span>
                     <button class="btn-borrar" style="width:auto; padding:8px; margin:0;" onclick='borrarDeNube("historial", "${docSnap.id}")'>🗑</button>
                 </div>`;
             }
         });
 
-        // 1. Obtener Gastos Generales
+        // 2. BUSCAMOS lo que está ENTREGADO en 'agenda' (Dinero ya recibido, pero sillas no devueltas)
+        const qAgendaEntregado = query(collection(window.db, "agenda"), where("estado", "==", "entregado"));
+        const snapAgenda = await getDocs(qAgendaEntregado);
+
+        snapAgenda.forEach(docSnap => {
+            const x = docSnap.data();
+            // Verificamos que sea del mes seleccionado
+            if (x.fecha.includes(mesSel)) {
+                const montoTrans = Number(x.transporte || 0);
+                const montoAlquiler = Number(x.total) - montoTrans;
+                
+                ingresosPuros += montoAlquiler;
+                totalTransporte += montoTrans;
+
+                // Lo mostramos en la lista con un color diferente (Azul) para indicar que está ACTIVO
+                html += `<div class="item-lista" style="border-left:5px solid #3498db; background:rgba(52, 152, 219, 0.05); display:flex; justify-content:space-between; align-items:center; padding:10px; margin-bottom:10px;">
+                    <span><b>${x.cliente.toUpperCase()}</b> <small style="color:#3498db; font-weight:bold;">(En Curso)</small><br>
+                    <small>${x.fecha} | Mobiliario: $${montoAlquiler.toFixed(2)} | Trp: $${montoTrans.toFixed(2)}</small></span>
+                    </div>`;
+            }
+        });
+
+        // 3. Obtener Gastos Generales
         const qG = query(collection(window.db, "gastos"), where("mes", "==", mesSel));
         const snapG = await getDocs(qG);
         let gastosTotales = 0;
@@ -346,7 +448,7 @@ function cargarHistorial() {
             </div>`;
         });
 
-        // 2. Obtener Retiros de Transporte
+        // 4. Obtener Retiros de Transporte
         const qR = query(collection(window.db, "retiros_transporte"), where("mes", "==", mesSel));
         const snapR = await getDocs(qR);
         let totalRetirosTransporte = 0;
@@ -364,7 +466,7 @@ function cargarHistorial() {
         const netoReal = ingresosPuros - gastosTotales;
         const transporteDisponible = totalTransporte - totalRetirosTransporte;
 
-        // PANEL DE RESULTADOS CON BOTÓN DE RETIRO EN LA CAJA AZUL
+        // PANEL DE RESULTADOS CON BOTÓN DE RETIRO
         document.getElementById("resumen-mensual").innerHTML = `
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
                 <div style="background: rgba(46, 204, 113, 0.1); padding: 8px; border-radius: 10px; border: 1px solid #2ecc71; text-align: center;">
@@ -385,8 +487,8 @@ function cargarHistorial() {
                     Ingresos: $${totalTransporte.toFixed(2)} | Retiros: -$${totalRetirosTransporte.toFixed(2)}
                 </div>
 
-                <button onclick="registrarRetiroTransporte()" style="margin-top:8px; background:#3498db; color:white; border:none; border-radius:5px; padding:5px 12px; font-weight:bold; cursor:pointer;">
-                    ➖ Retirar
+                <button onclick="registrarRetiroTransporte()" style="margin-top:10px; width:100%; display:block; background:#3498db; color:white; border:none; border-radius:8px; padding:10px; font-size:1rem; font-weight:bold; cursor:pointer;">
+                    ➖ REGISTRAR RETIRO
                 </button>
             </div>
 
@@ -402,10 +504,17 @@ function cargarHistorial() {
 
 // ================== UTILIDADES ==================
 async function borrarDeNube(tipo, id) {
+    // Si es cotización, ofrecemos mover a papelera (Soft Delete)
+    if (tipo === "cotizaciones") {
+        if(!confirm("¿Mover a papelera de reciclaje?")) return;
+        const { updateDoc, doc } = window.firebaseMethods;
+        await updateDoc(doc(window.db, tipo, id), { estado: "papelera" });
+        return;
+    }
+
+    // Para el resto (agenda, historial, gastos) es borrado permanente
     if(!confirm("¿Borrar definitivamente?")) return;
     await window.firebaseMethods.deleteDoc(window.firebaseMethods.doc(window.db, tipo, id));
-    
-    // Si borramos un retiro o gasto, recargamos el historial
     if (tipo === "historial" || tipo === "gastos" || tipo === "retiros_transporte") cargarHistorial();
 }
 
@@ -430,27 +539,15 @@ function descargarPDF(i, tipo) {
 }
 
 function iniciarVigilante() {
-    setInterval(async () => {
-        const { collection, getDocs, query, where } = window.firebaseMethods;
-        const ahora = new Date();
-        const fechaHoy = ahora.toISOString().split('T')[0];
-        const snap = await getDocs(query(collection(window.db, "agenda"), where("fecha", "==", fechaHoy)));
-        snap.forEach(doc => {
-            const ev = doc.data();
-            if (ev.hora) {
-                const [h, m] = ev.hora.split(':');
-                const horaEv = new Date(); horaEv.setHours(h, m, 0);
-                const diff = Math.round((horaEv - ahora) / 60000);
-                if (diff === 60) new Notification("🚚 MR ALQUILERES", { body: `Entrega en 1 hora: ${ev.cliente}`, icon: "logo.jpg" });
-            }
-        });
-    }, 60000);
+    // Hemos eliminado las notificaciones como pediste
+    console.log("Sistema de vigilancia activo (Sin notificaciones)");
 }
 
 // ================== CARGA INICIAL Y STOCK VISIBLE ==================
 window.addEventListener('load', () => { 
     cargarListasCompartidas(); 
     iniciarVigilante();
+    limpiezaAutomaticaPapelera(); // Lanza la limpieza al abrir
 
     const hoy = new Date();
     const fMes = document.getElementById("filtro-mes");
