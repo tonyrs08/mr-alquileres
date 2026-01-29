@@ -534,7 +534,78 @@ function descargarPDF(i, tipo) {
     const fechaEventoFormateada = partesFecha.length === 3 ? `${partesFecha[2]}/${partesFecha[1]}/${partesFecha[0]}` : data.fecha;
 
     let ventana = window.open("", "_blank");
-    ventana.document.write(`<html><head><title>Cotización MR - ${data.cliente}</title><style>@media print { body { -webkit-print-color-adjust: exact; } } body { font-family: Arial, sans-serif; padding: 40px; color: #333; background: #fff; } .header { border-bottom: 4px solid #d4af37; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; } .logo { width: 80px; height: 80px; object-fit: contain; } .info-cliente { background: #f2f2f2 !important; padding: 15px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #ddd; } table { width: 100%; border-collapse: collapse; margin-top: 10px; } th { background: #0b1f3a !important; color: white !important; padding: 12px; text-align: left; border: 1px solid #ddd; } td { padding: 10px; border: 1px solid #ddd; } .total { text-align: right; font-size: 22px; font-weight: bold; color: #0b1f3a; margin-top: 20px; } .notas { margin-top: 40px; padding: 15px; border: 1px dashed #d4af37; background: #fffcf5 !important; font-size: 12px; border-radius: 5px; }</style></head><body><div class="header"><div style="display: flex; align-items: center; gap: 15px;"><img src="logo.jpg" class="logo"><div><h1 style="margin:0; color:#d4af37; font-size: 28px;">MR ALQUILERES</h1><p style="margin:0; color: #666;">Mobiliario y Mantelería para Eventos</p></div></div><div style="text-align: right;"><h2 style="margin:0; color: #0b1f3a;">COTIZACIÓN</h2><p style="margin:5px 0 0 0;"><b>N°: ${nFactura}</b></p><p style="margin:2px 0; font-size: 14px;">Emisión: ${fechaEmision}</p><p style="margin:0; color:#d4af37;"><b>Evento: ${fechaEventoFormateada}</b></p></div></div><div class="info-cliente"><p style="margin:0;"><b>CLIENTE:</b> ${data.cliente.toUpperCase()}</p><p style="margin:5px 0 0 0;"><b>DIRECCIÓN:</b> ${data.direccion}</p></div><table><thead><tr><th>Descripción</th><th style="text-align:center;">Cant.</th><th style="text-align:right;">Subtotal</th></tr></thead><tbody>${data.plasticas > 0 ? `<tr><td>Sillas Plásticas</td><td style="text-align:center;">${data.plasticas}</td><td style="text-align:right;">$${(data.plasticas * 0.5).toFixed(2)}</td></tr>` : ''}${data.plegables > 0 ? `<tr><td>Sillas Plegables</td><td style="text-align:center;">${data.plegables}</td><td style="text-align:right;">$${(data.plegables * 1.0).toFixed(2)}</td></tr>` : ''}${data.cuadradas > 0 ? `<tr><td>Mesas Cuadradas</td><td style="text-align:center;">${data.cuadradas}</td><td style="text-align:right;">$${(data.cuadradas * 3.0).toFixed(2)}</td></tr>` : ''}${data.rectangular > 0 ? `<tr><td>Mesa Rectangular</td><td style="text-align:center;">${data.rectangular}</td><td style="text-align:right;">$${(data.rectangular * 6.0).toFixed(2)}</td></tr>` : ''}${data.transporte > 0 ? `<tr><td>Transporte</td><td style="text-align:center;">1</td><td style="text-align:right;">$${Number(data.transporte).toFixed(2)}</td></tr>` : ''}</tbody></table><div class="total">TOTAL A PAGAR: $${Number(data.total).toFixed(2)}</div><div class="notas"><b>TÉRMINOS Y CONDICIONES:</b><br>• Se requiere un abono del 50% para separar la fecha del evento.<br>• Cualquier daño al mobiliario o mantelería deberá ser cubierto por el cliente en su totalidad.</div><script>window.onload = function() { setTimeout(() => { window.print(); }, 800); };</script></body></html>`);
+    ventana.document.write(`
+        <html>
+        <head>
+            <title>Cotización MR - ${data.cliente}</title>
+            <style>
+                @media print { body { -webkit-print-color-adjust: exact; } } 
+                body { font-family: Arial, sans-serif; padding: 40px; color: #333; background: #fff; } 
+                .header { border-bottom: 4px solid #d4af37; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; } 
+                .logo { width: 80px; height: 80px; object-fit: contain; } 
+                .info-cliente { background: #f2f2f2 !important; padding: 15px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #ddd; } 
+                table { width: 100%; border-collapse: collapse; margin-top: 10px; } 
+                th { background: #0b1f3a !important; color: white !important; padding: 12px; text-align: left; border: 1px solid #ddd; } 
+                td { padding: 10px; border: 1px solid #ddd; } 
+                .total { text-align: right; font-size: 22px; font-weight: bold; color: #0b1f3a; margin-top: 20px; } 
+                .notas { margin-top: 40px; padding: 15px; border: 1px dashed #d4af37; background: #fffcf5 !important; font-size: 12px; border-radius: 5px; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <img src="logo.jpg" class="logo">
+                    <div>
+                        <h1 style="margin:0; color:#d4af37; font-size: 28px;">MR ALQUILERES</h1>
+                        <p style="margin:0; color: #666;">Mobiliario y Mantelería para Eventos</p>
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <h2 style="margin:0; color: #0b1f3a;">COTIZACIÓN</h2>
+                    <p style="margin:5px 0 0 0;"><b>N°: ${nFactura}</b></p>
+                    <p style="margin:2px 0; font-size: 14px;">Emisión: ${fechaEmision}</p>
+                    <p style="margin:0; color:#d4af37;"><b>Evento: ${fechaEventoFormateada}</b></p>
+                    <p style="margin:2px 0 0 0; font-size: 14px;"><b>Hora: ${data.hora || '--:--'}</b></p>
+                </div>
+            </div>
+
+            <div class="info-cliente">
+                <p style="margin:0;"><b>CLIENTE:</b> ${data.cliente.toUpperCase()}</p>
+                <p style="margin:5px 0 0 0;"><b>DIRECCIÓN:</b> ${data.direccion}</p>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Descripción</th>
+                        <th style="text-align:center;">Cant.</th>
+                        <th style="text-align:center;">Precio Unit.</th>
+                        <th style="text-align:right;">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.plasticas > 0 ? `<tr><td>Sillas Plásticas</td><td style="text-align:center;">${data.plasticas}</td><td style="text-align:center;">$0.50</td><td style="text-align:right;">$${(data.plasticas * 0.5).toFixed(2)}</td></tr>` : ''}
+                    ${data.plegables > 0 ? `<tr><td>Sillas Plegables</td><td style="text-align:center;">${data.plegables}</td><td style="text-align:center;">$1.00</td><td style="text-align:right;">$${(data.plegables * 1.0).toFixed(2)}</td></tr>` : ''}
+                    ${data.cuadradas > 0 ? `<tr><td>Mesas Cuadradas</td><td style="text-align:center;">${data.cuadradas}</td><td style="text-align:center;">$3.00</td><td style="text-align:right;">$${(data.cuadradas * 3.0).toFixed(2)}</td></tr>` : ''}
+                    ${data.rectangular > 0 ? `<tr><td>Mesa Rectangular</td><td style="text-align:center;">${data.rectangular}</td><td style="text-align:center;">$6.00</td><td style="text-align:right;">$${(data.rectangular * 6.0).toFixed(2)}</td></tr>` : ''}
+                    ${data.transporte > 0 ? `<tr><td>Transporte</td><td style="text-align:center;">1</td><td style="text-align:center;">$${Number(data.transporte).toFixed(2)}</td><td style="text-align:right;">$${Number(data.transporte).toFixed(2)}</td></tr>` : ''}
+                </tbody>
+            </table>
+
+            <div class="total">TOTAL A PAGAR: $${Number(data.total).toFixed(2)}</div>
+
+            <div class="notas">
+                <b>TÉRMINOS Y CONDICIONES:</b><br>
+                • Se requiere un abono del 50% para separar la fecha del evento.<br>
+                • Cualquier daño al mobiliario o mantelería deberá ser cubierto por el cliente en su totalidad.
+            </div>
+
+            <script>
+                window.onload = function() { setTimeout(() => { window.print(); }, 800); };
+            </script>
+        </body>
+        </html>
+    `);
     ventana.document.close();
 }
 
